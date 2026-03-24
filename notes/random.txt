@@ -1,0 +1,95 @@
+for some reason the backend data is not working so we need a mock data to make this page function without relying in the backend
+to do that i will send the json responses from the backend
+then you will rewrite the whole file and use client side data instead
+send me the new updated complete code as one file 
+
+to create a new organization you need this input shape
+{
+    orgName: string;
+    description?: string | undefined;
+    adviserId: string;
+}
+a single user from the response have (and we need an adviser role)
+{
+    username: string;
+    password: string;
+    role: "admin" | "adviser" | "officer" | "student";
+    email: string;
+    phoneNumber?: string | null | undefined;
+    passwordResetToken?: string | null | undefined;
+    passwordResetExpires?: NativeDate | null | undefined;
+}
+
+for success creation you get this structure
+{
+  success: boolean;
+  message: string;
+  data: {
+    _id: string;
+    orgName: string;
+    description?: string;
+    adviser: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+for any kind of error you got this kind of structure
+{
+  success: false;
+  status: "fail";
+  message: string;
+}
+
+
+--
+
+to edit a existing organization, you need this input
+id: this is the organization you want to update
+data: you need to at least update one of:
+{
+    orgName?: string | undefined;
+    description?: string | undefined;
+    adviserId?: string | undefined;
+}
+this is rules when updating organization:
+  organization must existing
+
+the response for success look like this
+{
+  success: boolean;
+  message: string;
+  data: {
+    _id: string;
+    orgName: string;
+    description?: string;
+    adviserId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+---
+to get organization by _id, we pass id 
+this is the success response
+{
+  success: boolean;
+  message: string;
+  data: {
+    _id: string;
+    orgName: string;
+    description?: string;
+    adviserId: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
+
+
+---
+to delete, we need to pass _id
+success response
+{
+  success: boolean;
+  message: string;
+  data: null;
+}
