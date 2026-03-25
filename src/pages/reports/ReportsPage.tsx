@@ -620,197 +620,202 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-foreground text-2xl font-bold">Reports</h1>
-          <p className="text-muted-foreground mt-1">Manage organization reports and submissions</p>
-        </div>
-        <Button onClick={openCreateModal}>
-          <div className="flex items-center justify-center">
-            <Plus className="h-4 w-4 mr-2" />
-            New Report
-          </div>
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap gap-4">
-        <div className="w-48">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
-          >
-            {statusFilterOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="w-48">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
-          >
-            {typeFilterOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <DataTable columns={columns} data={reports} searchPlaceholder="Search reports..." />
-
-      <Modal isOpen={modalOpen && !isEditing} onClose={closeModal} title="Submit New Report">
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="orgId">Organization</Label>
-            <Select
-              id="orgId"
-              options={orgs}
-              placeholder="Select an organization"
-              {...register("orgId")}
-            />
-            {errors.orgId && (
-              <p className="text-destructive mt-1 text-sm">{errors.orgId.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="reportType">Report Type</Label>
-            <Select
-              id="reportType"
-              options={reportTypeOptions}
-              placeholder="Select report type"
-              {...register("reportType")}
-            />
-            {errors.reportType && (
-              <p className="text-destructive mt-1 text-sm">{errors.reportType.message}</p>
-            )}
-          </div>
-
+    <>
+      <title>CampusHub | Reports</title>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
           <div>
-            <Label className="mb-1.5 block">Attachments</Label>
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-border hover:border-primary/50 cursor-pointer rounded-lg border-2 border-dashed p-5 text-center transition-colors"
-            >
-              <Upload className="text-muted-foreground/50 mx-auto mb-2 h-7 w-7" />
-              <p className="text-muted-foreground text-sm">Click to upload files</p>
-              <p className="text-muted-foreground/70 mt-1 text-xs">PDF, DOC, DOCX, XLS, XLSX</p>
+            <h1 className="text-foreground text-2xl font-bold">Reports</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage organization reports and submissions
+            </p>
+          </div>
+          <Button onClick={openCreateModal}>
+            <div className="flex items-center justify-center">
+              <Plus className="h-4 w-4 mr-2" />
+              New Report
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx"
-            />
-            {files.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {files.map((file, index) => (
-                  <div
-                    key={index}
-                    className="bg-muted flex items-center justify-between rounded-md px-3 py-2 text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-foreground truncate max-w-[200px]">{file.name}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(index)}
-                      className="text-destructive hover:text-destructive/80 ml-2 shrink-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap gap-4">
+          <div className="w-48">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+            >
+              {statusFilterOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="w-48">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+            >
+              {typeFilterOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <DataTable columns={columns} data={reports} searchPlaceholder="Search reports..." />
+
+        <Modal isOpen={modalOpen && !isEditing} onClose={closeModal} title="Submit New Report">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="orgId">Organization</Label>
+              <Select
+                id="orgId"
+                options={orgs}
+                placeholder="Select an organization"
+                {...register("orgId")}
+              />
+              {errors.orgId && (
+                <p className="text-destructive mt-1 text-sm">{errors.orgId.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="reportType">Report Type</Label>
+              <Select
+                id="reportType"
+                options={reportTypeOptions}
+                placeholder="Select report type"
+                {...register("reportType")}
+              />
+              {errors.reportType && (
+                <p className="text-destructive mt-1 text-sm">{errors.reportType.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label className="mb-1.5 block">Attachments</Label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-border hover:border-primary/50 cursor-pointer rounded-lg border-2 border-dashed p-5 text-center transition-colors"
+              >
+                <Upload className="text-muted-foreground/50 mx-auto mb-2 h-7 w-7" />
+                <p className="text-muted-foreground text-sm">Click to upload files</p>
+                <p className="text-muted-foreground/70 mt-1 text-xs">PDF, DOC, DOCX, XLS, XLSX</p>
               </div>
-            )}
-          </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx"
+              />
+              {files.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {files.map((file, index) => (
+                    <div
+                      key={index}
+                      className="bg-muted flex items-center justify-between rounded-md px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-foreground truncate max-w-[200px]">{file.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="text-destructive hover:text-destructive/80 ml-2 shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" type="button" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={submitting}>
-              Submit Report
-            </Button>
-          </div>
-        </form>
-      </Modal>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" type="button" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Submit Report
+              </Button>
+            </div>
+          </form>
+        </Modal>
 
-      <Modal isOpen={modalOpen && isEditing} onClose={closeModal} title="Update Report Status">
-        <form onSubmit={onEditStatusSubmit} className="space-y-4">
-          <div className="text-muted-foreground border-border space-y-1 border-b pb-2 text-sm">
-            <p>
-              <span className="text-foreground font-medium">Organization:</span>{" "}
-              {editingReport?.orgId && typeof editingReport.orgId === "object"
-                ? editingReport.orgId.orgName
-                : "—"}
-            </p>
-            <p>
-              <span className="text-foreground font-medium">Type:</span>{" "}
-              {editingReport?.reportType === "actionPlan"
-                ? "Action Plan"
-                : editingReport?.reportType || "—"}
-            </p>
-            <p>
-              <span className="text-foreground font-medium">Submitted By:</span>{" "}
-              {editingReport?.submittedBy && typeof editingReport.submittedBy === "object"
-                ? editingReport.submittedBy.username
-                : "—"}
-            </p>
-          </div>
+        <Modal isOpen={modalOpen && isEditing} onClose={closeModal} title="Update Report Status">
+          <form onSubmit={onEditStatusSubmit} className="space-y-4">
+            <div className="text-muted-foreground border-border space-y-1 border-b pb-2 text-sm">
+              <p>
+                <span className="text-foreground font-medium">Organization:</span>{" "}
+                {editingReport?.orgId && typeof editingReport.orgId === "object"
+                  ? editingReport.orgId.orgName
+                  : "—"}
+              </p>
+              <p>
+                <span className="text-foreground font-medium">Type:</span>{" "}
+                {editingReport?.reportType === "actionPlan"
+                  ? "Action Plan"
+                  : editingReport?.reportType || "—"}
+              </p>
+              <p>
+                <span className="text-foreground font-medium">Submitted By:</span>{" "}
+                {editingReport?.submittedBy && typeof editingReport.submittedBy === "object"
+                  ? editingReport.submittedBy.username
+                  : "—"}
+              </p>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              id="status"
-              options={statusOptions}
-              value={editStatus}
-              onChange={(e) => setEditStatus(e.target.value)}
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <Select
+                id="status"
+                options={statusOptions}
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value)}
+              />
+            </div>
 
-          <div>
-            <Label className="mb-1.5 block">Message (optional)</Label>
-            <Textarea
-              placeholder="Add a note for the submitter..."
-              value={editMessage}
-              onChange={(e) => setEditMessage(e.target.value)}
-              rows={3}
-            />
-          </div>
+            <div>
+              <Label className="mb-1.5 block">Message (optional)</Label>
+              <Textarea
+                placeholder="Add a note for the submitter..."
+                value={editMessage}
+                onChange={(e) => setEditMessage(e.target.value)}
+                rows={3}
+              />
+            </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" type="button" onClick={closeModal}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={submitting}>
-              Update Status
-            </Button>
-          </div>
-        </form>
-      </Modal>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" type="button" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={submitting}>
+                Update Status
+              </Button>
+            </div>
+          </form>
+        </Modal>
 
-      {canDelete && (
-        <ConfirmDialog
-          isOpen={!!deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={handleDelete}
-          title="Delete Report"
-          message="Are you sure you want to delete this report? This action cannot be undone."
-          confirmText="Delete"
-          loading={deleting}
-        />
-      )}
-    </div>
+        {canDelete && (
+          <ConfirmDialog
+            isOpen={!!deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            onConfirm={handleDelete}
+            title="Delete Report"
+            message="Are you sure you want to delete this report? This action cannot be undone."
+            confirmText="Delete"
+            loading={deleting}
+          />
+        )}
+      </div>
+    </>
   );
 }

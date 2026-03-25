@@ -4,13 +4,20 @@ import "./index.css";
 import App from "./App.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { BrowserRouter as Router } from "react-router";
-import { AuthenticationProvider } from "./contexts/AuthContext.tsx";
+import { AuthenticationProvider, AUTHENTICATION_STORAGE_KEY } from "./contexts/AuthContext.tsx";
 import { Toaster } from "./components/ui/sonner.tsx";
 
+const AUTH_TOKEN_KEY = "auth-token";
+
 function setupAuthListener() {
-  const handler = () => {
+  const handler = (event: Event) => {
     console.log("Session expired → redirecting");
-    localStorage.removeItem("user");
+    const customEvent = event as CustomEvent;
+    if (customEvent.detail) {
+      console.log("[Auth Error]", customEvent.detail);
+    }
+    localStorage.removeItem(AUTHENTICATION_STORAGE_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     window.location.href = "/login";
   };
 

@@ -280,187 +280,198 @@ const UsersPage = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Users</h1>
-          <p className="text-muted-foreground mt-1">Manage platform users</p>
-        </div>
-        <Button onClick={openCreateModal}>
-          <div className="flex items-center justify-center">
-            <Plus className="h-4 w-4 mr-2" />
-            Add User
+    <>
+      <title>CampusHub | User Management</title>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Users</h1>
+            <p className="text-muted-foreground mt-1">Manage platform users</p>
           </div>
-        </Button>
-      </div>
-
-      <DataTable columns={columns} data={users} searchPlaceholder="Search users..." />
-
-      <Dialog open={modalOpen} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg",
-                  isEditing ? "bg-amber-500/10" : "bg-primary/10",
-                )}
-              >
-                {isEditing ? (
-                  <UserPen className="h-5 w-5 text-amber-600" />
-                ) : (
-                  <UserPlus className="h-5 w-5 text-primary" />
-                )}
-              </div>
-              <div>
-                <DialogTitle>{isEditing ? "Edit User" : "Add New User"}</DialogTitle>
-                <DialogDescription>
-                  {isEditing
-                    ? `Update details for ${editingUser?.username}`
-                    : "Create a new user account on the platform"}
-                </DialogDescription>
-              </div>
+          <Button onClick={openCreateModal}>
+            <div className="flex items-center justify-center">
+              <Plus className="h-4 w-4 mr-2" />
+              Add User
             </div>
-          </DialogHeader>
-          <Separator />
-          <form
-            onSubmit={isEditing ? editForm.handleSubmit(onEdit) : createForm.handleSubmit(onCreate)}
-            className="space-y-5"
-          >
-            <div className="space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Account Information
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="username" className="flex items-center gap-1.5 text-sm font-medium">
-                  <User className="h-3.5 w-3.5 text-muted-foreground" />
-                  Username
-                </Label>
-                <Input
-                  id="username"
-                  placeholder="Enter username..."
-                  {...register("username")}
-                  error={errors.username?.message}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-1.5 text-sm font-medium">
-                  <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="user@example.com"
-                  {...register("email")}
-                  error={errors.email?.message}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center gap-1.5 text-sm font-medium">
-                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                  Password
-                  {isEditing && (
-                    <span className="text-muted-foreground/60 font-normal">
-                      (leave blank to keep current)
-                    </span>
+          </Button>
+        </div>
+
+        <DataTable columns={columns} data={users} searchPlaceholder="Search users..." />
+
+        <Dialog open={modalOpen} onOpenChange={(open) => !open && closeModal()}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <div className="flex items-center gap-3">
+                <div
+                  className={cn(
+                    "flex h-10 w-10 items-center justify-center rounded-lg",
+                    isEditing ? "bg-amber-500/10" : "bg-primary/10",
                   )}
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder={isEditing ? "Enter new password..." : "Min. 8 characters"}
-                  {...register("password")}
-                  error={errors.password?.message}
-                />
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="space-y-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Role & Contact
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="role" className="flex items-center gap-1.5 text-sm font-medium">
-                  <Shield className="h-3.5 w-3.5 text-muted-foreground" />
-                  Role
-                </Label>
-                <Select
-                  id="role"
-                  options={roleOptions}
-                  placeholder="Select a role..."
-                  {...register("role")}
-                  error={errors.role?.message}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="phoneNumber"
-                  className="flex items-center gap-1.5 text-sm font-medium"
                 >
-                  <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                  Phone Number
-                </Label>
-                <Input
-                  id="phoneNumber"
-                  placeholder="09082861144"
-                  {...register("phoneNumber")}
-                  error={errors.phoneNumber?.message}
-                />
+                  {isEditing ? (
+                    <UserPen className="h-5 w-5 text-amber-600" />
+                  ) : (
+                    <UserPlus className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+                <div>
+                  <DialogTitle>{isEditing ? "Edit User" : "Add New User"}</DialogTitle>
+                  <DialogDescription>
+                    {isEditing
+                      ? `Update details for ${editingUser?.username}`
+                      : "Create a new user account on the platform"}
+                  </DialogDescription>
+                </div>
               </div>
-            </div>
-
+            </DialogHeader>
             <Separator />
+            <form
+              onSubmit={
+                isEditing ? editForm.handleSubmit(onEdit) : createForm.handleSubmit(onCreate)
+              }
+              className="space-y-5"
+            >
+              <div className="space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Account Information
+                </p>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="username"
+                    className="flex items-center gap-1.5 text-sm font-medium"
+                  >
+                    <User className="h-3.5 w-3.5 text-muted-foreground" />
+                    Username
+                  </Label>
+                  <Input
+                    id="username"
+                    placeholder="Enter username..."
+                    {...register("username")}
+                    error={errors.username?.message}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="flex items-center gap-1.5 text-sm font-medium">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="user@example.com"
+                    {...register("email")}
+                    error={errors.email?.message}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="password"
+                    className="flex items-center gap-1.5 text-sm font-medium"
+                  >
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                    Password
+                    {isEditing && (
+                      <span className="text-muted-foreground/60 font-normal">
+                        (leave blank to keep current)
+                      </span>
+                    )}
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder={isEditing ? "Enter new password..." : "Min. 8 characters"}
+                    {...register("password")}
+                    error={errors.password?.message}
+                  />
+                </div>
+              </div>
 
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" type="button" onClick={closeModal}>
+              <Separator />
+
+              <div className="space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Role & Contact
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="role" className="flex items-center gap-1.5 text-sm font-medium">
+                    <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                    Role
+                  </Label>
+                  <Select
+                    id="role"
+                    options={roleOptions}
+                    placeholder="Select a role..."
+                    {...register("role")}
+                    error={errors.role?.message}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="phoneNumber"
+                    className="flex items-center gap-1.5 text-sm font-medium"
+                  >
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phoneNumber"
+                    placeholder="09082861144"
+                    {...register("phoneNumber")}
+                    error={errors.phoneNumber?.message}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" type="button" onClick={closeModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" loading={submitting} className="gap-1.5">
+                  {isEditing ? (
+                    <>
+                      <div className="flex items-center justify-center">
+                        <UserPen className="h-4 w-4" />
+                        Update User
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-center">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add User
+                      </div>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete User</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-foreground">{deleteTarget?.username}</span>?
+                This action cannot be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" onClick={() => setDeleteTarget(null)}>
                 Cancel
               </Button>
-              <Button type="submit" loading={submitting} className="gap-1.5">
-                {isEditing ? (
-                  <>
-                    <div className="flex items-center justify-center">
-                      <UserPen className="h-4 w-4" />
-                      Update User
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-center">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add User
-                    </div>
-                  </>
-                )}
+              <Button variant="destructive" onClick={onDelete}>
+                Delete
               </Button>
             </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-semibold text-foreground">{deleteTarget?.username}</span>? This
-              action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-3 pt-4">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={onDelete}>
-              Delete
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </>
   );
 };
 

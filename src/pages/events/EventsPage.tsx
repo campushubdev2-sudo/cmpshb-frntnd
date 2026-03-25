@@ -662,191 +662,194 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-foreground text-2xl font-bold">Events</h1>
-          <p className="text-muted-foreground mt-1">
-            {canManage ? "Manage campus events" : "View campus events"}
-          </p>
+    <>
+      <title>CampusHub | Events Management</title>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-foreground text-2xl font-bold">Events</h1>
+            <p className="text-muted-foreground mt-1">
+              {canManage ? "Manage campus events" : "View campus events"}
+            </p>
+          </div>
+          {canManage && (
+            <Button onClick={openCreateModal}>
+              <div className="flex items-center justify-center">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Event
+              </div>
+            </Button>
+          )}
         </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="bg-primary/10 rounded-lg p-2.5">
+                <Calendar className="text-primary h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold leading-none">{eventsList.length}</p>
+                <p className="text-muted-foreground text-xs">Total Events</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="bg-amber-100 dark:bg-amber-900/30 rounded-lg p-2.5">
+                <Clock className="text-amber-600 h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold leading-none">
+                  {eventsList.filter((e) => e.status === "upcoming").length}
+                </p>
+                <p className="text-muted-foreground text-xs">Upcoming</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-2.5">
+                <Users className="text-blue-600 h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold leading-none">
+                  {eventsList.filter((e) => e.status === "ongoing").length}
+                </p>
+                <p className="text-muted-foreground text-xs">Ongoing</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg p-2.5">
+                <MapPin className="text-emerald-600 h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold leading-none">
+                  {eventsList.filter((e) => e.status === "completed").length}
+                </p>
+                <p className="text-muted-foreground text-xs">Completed</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <DataTable columns={columns} data={eventsList} searchPlaceholder="Search events..." />
+
         {canManage && (
-          <Button onClick={openCreateModal}>
-            <div className="flex items-center justify-center">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Event
-            </div>
-          </Button>
-        )}
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <div className="bg-primary/10 rounded-lg p-2.5">
-              <Calendar className="text-primary h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold leading-none">{eventsList.length}</p>
-              <p className="text-muted-foreground text-xs">Total Events</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <div className="bg-amber-100 dark:bg-amber-900/30 rounded-lg p-2.5">
-              <Clock className="text-amber-600 h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold leading-none">
-                {eventsList.filter((e) => e.status === "upcoming").length}
-              </p>
-              <p className="text-muted-foreground text-xs">Upcoming</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <div className="bg-blue-100 dark:bg-blue-900/30 rounded-lg p-2.5">
-              <Users className="text-blue-600 h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold leading-none">
-                {eventsList.filter((e) => e.status === "ongoing").length}
-              </p>
-              <p className="text-muted-foreground text-xs">Ongoing</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 py-4">
-            <div className="bg-emerald-100 dark:bg-emerald-900/30 rounded-lg p-2.5">
-              <MapPin className="text-emerald-600 h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold leading-none">
-                {eventsList.filter((e) => e.status === "completed").length}
-              </p>
-              <p className="text-muted-foreground text-xs">Completed</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <DataTable columns={columns} data={eventsList} searchPlaceholder="Search events..." />
-
-      {canManage && (
-        <Modal
-          isOpen={modalOpen}
-          onClose={closeModal}
-          title={isEditing ? "Edit Event" : "Add Event"}
-          size="lg"
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input id="title" placeholder="Event title" {...register("title")} />
-                {errors.title && (
-                  <p className="text-destructive mt-1 text-sm">{errors.title.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="objective">Objective</Label>
-                <Input id="objective" placeholder="Event objective" {...register("objective")} />
-                {errors.objective && (
-                  <p className="text-destructive mt-1 text-sm">{errors.objective.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input
-                  id="description"
-                  placeholder="Brief description"
-                  {...register("description")}
-                />
-                {errors.description && (
-                  <p className="text-destructive mt-1 text-sm">{errors.description.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="venue">Venue</Label>
-                <Input id="venue" placeholder="Event venue" {...register("venue")} />
-                {errors.venue && (
-                  <p className="text-destructive mt-1 text-sm">{errors.venue.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="organizedBy">Organized By</Label>
-                <Select
-                  id="organizedBy"
-                  options={ORGANIZED_BY_OPTIONS}
-                  placeholder="Select organizer"
-                  {...register("organizedBy")}
-                />
-                {errors.organizedBy && (
-                  <p className="text-destructive mt-1 text-sm">{errors.organizedBy.message}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="allDay" {...register("allDay")} className="h-4 w-4" />
-                <Label htmlFor="allDay" className="cursor-pointer">
-                  All Day Event
-                </Label>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Modal
+            isOpen={modalOpen}
+            onClose={closeModal}
+            title={isEditing ? "Edit Event" : "Add Event"}
+            size="lg"
+          >
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input id="startDate" type="date" {...register("startDate")} />
-                  {errors.startDate && (
-                    <p className="text-destructive text-sm">{errors.startDate.message}</p>
+                  <Label htmlFor="title">Title</Label>
+                  <Input id="title" placeholder="Event title" {...register("title")} />
+                  {errors.title && (
+                    <p className="text-destructive mt-1 text-sm">{errors.title.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input id="endDate" type="date" {...register("endDate")} />
-                  {errors.endDate && (
-                    <p className="text-destructive text-sm">{errors.endDate.message}</p>
+                  <Label htmlFor="objective">Objective</Label>
+                  <Input id="objective" placeholder="Event objective" {...register("objective")} />
+                  {errors.objective && (
+                    <p className="text-destructive mt-1 text-sm">{errors.objective.message}</p>
                   )}
                 </div>
-              </div>
-              {!allDay && (
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Input
+                    id="description"
+                    placeholder="Brief description"
+                    {...register("description")}
+                  />
+                  {errors.description && (
+                    <p className="text-destructive mt-1 text-sm">{errors.description.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="venue">Venue</Label>
+                  <Input id="venue" placeholder="Event venue" {...register("venue")} />
+                  {errors.venue && (
+                    <p className="text-destructive mt-1 text-sm">{errors.venue.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="organizedBy">Organized By</Label>
+                  <Select
+                    id="organizedBy"
+                    options={ORGANIZED_BY_OPTIONS}
+                    placeholder="Select organizer"
+                    {...register("organizedBy")}
+                  />
+                  {errors.organizedBy && (
+                    <p className="text-destructive mt-1 text-sm">{errors.organizedBy.message}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="checkbox" id="allDay" {...register("allDay")} className="h-4 w-4" />
+                  <Label htmlFor="allDay" className="cursor-pointer">
+                    All Day Event
+                  </Label>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="startTime">Start Time</Label>
-                    <Input id="startTime" type="time" {...register("startTime")} />
+                    <Label htmlFor="startDate">Start Date</Label>
+                    <Input id="startDate" type="date" {...register("startDate")} />
+                    {errors.startDate && (
+                      <p className="text-destructive text-sm">{errors.startDate.message}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="endTime">End Time</Label>
-                    <Input id="endTime" type="time" {...register("endTime")} />
+                    <Label htmlFor="endDate">End Date</Label>
+                    <Input id="endDate" type="date" {...register("endDate")} />
+                    {errors.endDate && (
+                      <p className="text-destructive text-sm">{errors.endDate.message}</p>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button variant="outline" type="button" onClick={closeModal}>
-                Cancel
-              </Button>
-              <Button type="submit" loading={submitting}>
-                {isEditing ? "Update" : "Create"}
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
+                {!allDay && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="startTime">Start Time</Label>
+                      <Input id="startTime" type="time" {...register("startTime")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endTime">End Time</Label>
+                      <Input id="endTime" type="time" {...register("endTime")} />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button variant="outline" type="button" onClick={closeModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" loading={submitting}>
+                  {isEditing ? "Update" : "Create"}
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        )}
 
-      {canManage && (
-        <ConfirmDialog
-          isOpen={!!deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={handleDelete}
-          title="Delete Event"
-          message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
-          confirmText="Delete"
-          loading={deleting}
-        />
-      )}
-    </div>
+        {canManage && (
+          <ConfirmDialog
+            isOpen={!!deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            onConfirm={handleDelete}
+            title="Delete Event"
+            message={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
+            confirmText="Delete"
+            loading={deleting}
+          />
+        )}
+      </div>
+    </>
   );
 }

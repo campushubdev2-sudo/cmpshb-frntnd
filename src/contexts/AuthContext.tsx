@@ -51,8 +51,14 @@ export function AuthenticationProvider({ children }: { children: ReactNode }) {
     const response = await authApi.signIn(credentials);
 
     const { data: payload, success, message } = response.data;
-    const { user } = payload;
+    const { user, token } = payload;
 
+    // Store token if returned in response body (for cross-origin setups)
+    if (token) {
+      localStorage.setItem("auth-token", token);
+    }
+
+    // Store user in localStorage for session persistence
     persistUser(user);
     setAuthenticatedUser(user);
 
@@ -74,6 +80,8 @@ export function AuthenticationProvider({ children }: { children: ReactNode }) {
   const clearPersistence = (): void => {
     persistUser(null);
     setAuthenticatedUser(null);
+    // Clear token from localStorage
+    localStorage.removeItem("auth-token");
   };
 
   const value = useMemo(

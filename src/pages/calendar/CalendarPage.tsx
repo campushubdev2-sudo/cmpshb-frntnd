@@ -328,47 +328,50 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground mt-1">View and track campus events by date</p>
+    <>
+      <title>CampusHub | Calendar</title>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
+            <p className="text-muted-foreground mt-1">View and track campus events by date</p>
+          </div>
         </div>
-      </div>
 
-      {/* Stats Bar */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {STATS_CONFIG.map((stat, index) => {
-          const values = [stats.thisMonth, stats.upcoming, stats.completed, stats.total];
-          return (
-            <Card key={stat.label} className="p-0">
-              <CardContent className="flex items-center gap-3 p-3.5">
-                <div
-                  className={cn(
-                    "flex h-10 w-10 items-center justify-center rounded-lg",
-                    stat.color,
-                  )}
-                >
-                  <stat.icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-2xl leading-none font-bold">{values[index]}</p>
-                  <p className="text-muted-foreground mt-1 text-xs">{stat.label}</p>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+        {/* Stats Bar */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {STATS_CONFIG.map((stat, index) => {
+            const values = [stats.thisMonth, stats.upcoming, stats.completed, stats.total];
+            return (
+              <Card key={stat.label} className="p-0">
+                <CardContent className="flex items-center gap-3 p-3.5">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-lg",
+                      stat.color,
+                    )}
+                  >
+                    <stat.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-2xl leading-none font-bold">{values[index]}</p>
+                    <p className="text-muted-foreground mt-1 text-xs">{stat.label}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
 
-      {/* Calendar Section - Using ilamy Calendar */}
-      <CalendarSection
-        isAdmin={canManage}
-        events={events}
-        onEventSave={handleEventSave}
-        onEventDelete={handleEventDelete}
-      />
-    </div>
+        {/* Calendar Section - Using ilamy Calendar */}
+        <CalendarSection
+          isAdmin={canManage}
+          events={events}
+          onEventSave={handleEventSave}
+          onEventDelete={handleEventDelete}
+        />
+      </div>
+    </>
   );
 }

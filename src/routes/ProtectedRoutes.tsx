@@ -1,4 +1,4 @@
-import { Navigate } from "react-router";
+import { Navigate, useLocation } from "react-router";
 import { useEffect, useState, type ReactNode, type ReactElement } from "react";
 import { useAuthentication } from "../contexts/AuthContext";
 import { authApi } from "../api/auth-api";
@@ -14,31 +14,46 @@ export default function ProtectedRoute({
   allowedRoles,
 }: ProtectedRouteProps): ReactElement | null {
   const { isAuthenticated, authenticatedUser, logout } = useAuthentication();
+  const location = useLocation();
   const [verifying, setVerifying] = useState<boolean>(true);
   const [tokenExpired, setTokenExpired] = useState<boolean>(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Skip profile check when this instance is only doing a role check.
-    // The outer (no-allowedRoles) ProtectedRoute already handles session validation.
-    if (!isAuthenticated || allowedRoles) {
+    // If not authenticated, redirect immediately
+    if (!isAuthenticated) {
       setVerifying(false);
       return;
     }
 
+    // Only verify profile if allowedRoles is specified (role-based protection)
+    if (!allowedRoles) {
+      setVerifying(false);
+      return;
+    }
+
+    // Verify profile for role-based routes
     authApi
       .getProfile()
+      .then(() => {
+        setVerifying(false);
+      })
       .catch((error: any) => {
+        const status = error.response?.status;
         const message: string = error.response?.data?.message || "";
-        const isTokenExpired = message
-          .toLowerCase()
-          .includes("your token has expired. please log in again.");
+        
+        console.log("[ProtectedRoute] Profile fetch failed:", { status, message });
+        setProfileError(message);
 
-        if (isTokenExpired) {
+        // Logout on 401 error
+        if (status === 401) {
           logout();
           setTokenExpired(true);
+        } else {
+          // For other errors, still allow access if user is logged in
+          setVerifying(false);
         }
-      })
-      .finally(() => setVerifying(false));
+      });
   }, [isAuthenticated, allowedRoles, logout]);
 
   if (verifying) {

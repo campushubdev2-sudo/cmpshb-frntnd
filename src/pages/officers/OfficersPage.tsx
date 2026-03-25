@@ -597,95 +597,102 @@ const OfficersPage = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Officers</h1>
-          <p className="text-muted-foreground mt-1">
-            {canManage ? "Manage organization officers" : "View organization officers"}
-          </p>
+    <>
+      <title>CampusHub | Officer Management</title>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Officers</h1>
+            <p className="text-muted-foreground mt-1">
+              {canManage ? "Manage organization officers" : "View organization officers"}
+            </p>
+          </div>
+          {canManage && (
+            <Button onClick={openCreateModal}>
+              <div className="flex items-center justify-center">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Officer
+              </div>
+            </Button>
+          )}
         </div>
+
+        <DataTable
+          columns={columns}
+          data={filteredOfficers}
+          searchPlaceholder="Search officers..."
+        />
+
         {canManage && (
-          <Button onClick={openCreateModal}>
-            <div className="flex items-center justify-center">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Officer
-            </div>
-          </Button>
+          <Modal
+            isOpen={modalOpen}
+            onClose={closeModal}
+            title={isEditing ? "Edit Officer" : "Add Officer"}
+          >
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <Select
+                label="User"
+                options={users}
+                placeholder="Select a user"
+                {...register("userId")}
+                error={errors.userId?.message}
+                disabled={isEditing}
+              />
+              <Select
+                label="Organization"
+                options={orgOptions}
+                placeholder="Select an organization"
+                {...register("orgId")}
+                error={errors.orgId?.message}
+                disabled={isEditing}
+              />
+              <Select
+                label="Position"
+                options={positionOptions}
+                placeholder="Select a position"
+                {...register("position")}
+                error={errors.position?.message}
+              />
+              <div className="space-y-2">
+                <Label htmlFor="startTerm">Term Start</Label>
+                <Input id="startTerm" type="date" {...register("startTerm")} />
+                {errors.startTerm && (
+                  <p className="text-sm text-destructive">{errors.startTerm.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTerm">Term End</Label>
+                <Input id="endTerm" type="date" {...register("endTerm")} />
+                {errors.endTerm && (
+                  <p className="text-sm text-destructive">{errors.endTerm.message}</p>
+                )}
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" type="button" onClick={closeModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" loading={submitting}>
+                  {isEditing ? "Update" : "Create"}
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        )}
+
+        {/* Delete Confirmation - only for admin/adviser */}
+        {canManage && (
+          <ConfirmDialog
+            isOpen={!!deleteTarget}
+            onClose={() => setDeleteTarget(null)}
+            onConfirm={handleDelete}
+            title="Delete Officer"
+            message={`Are you sure you want to delete this officer record? This action cannot be undone.`}
+            confirmText="Delete"
+            loading={deleting}
+          />
         )}
       </div>
-
-      <DataTable columns={columns} data={filteredOfficers} searchPlaceholder="Search officers..." />
-
-      {canManage && (
-        <Modal
-          isOpen={modalOpen}
-          onClose={closeModal}
-          title={isEditing ? "Edit Officer" : "Add Officer"}
-        >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Select
-              label="User"
-              options={users}
-              placeholder="Select a user"
-              {...register("userId")}
-              error={errors.userId?.message}
-              disabled={isEditing}
-            />
-            <Select
-              label="Organization"
-              options={orgOptions}
-              placeholder="Select an organization"
-              {...register("orgId")}
-              error={errors.orgId?.message}
-              disabled={isEditing}
-            />
-            <Select
-              label="Position"
-              options={positionOptions}
-              placeholder="Select a position"
-              {...register("position")}
-              error={errors.position?.message}
-            />
-            <div className="space-y-2">
-              <Label htmlFor="startTerm">Term Start</Label>
-              <Input id="startTerm" type="date" {...register("startTerm")} />
-              {errors.startTerm && (
-                <p className="text-sm text-destructive">{errors.startTerm.message}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endTerm">Term End</Label>
-              <Input id="endTerm" type="date" {...register("endTerm")} />
-              {errors.endTerm && (
-                <p className="text-sm text-destructive">{errors.endTerm.message}</p>
-              )}
-            </div>
-            <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" type="button" onClick={closeModal}>
-                Cancel
-              </Button>
-              <Button type="submit" loading={submitting}>
-                {isEditing ? "Update" : "Create"}
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Delete Confirmation - only for admin/adviser */}
-      {canManage && (
-        <ConfirmDialog
-          isOpen={!!deleteTarget}
-          onClose={() => setDeleteTarget(null)}
-          onConfirm={handleDelete}
-          title="Delete Officer"
-          message={`Are you sure you want to delete this officer record? This action cannot be undone.`}
-          confirmText="Delete"
-          loading={deleting}
-        />
-      )}
-    </div>
+    </>
   );
 };
 
