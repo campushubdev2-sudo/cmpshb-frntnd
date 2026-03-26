@@ -6,245 +6,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types (matching backend response shapes)
-// ─────────────────────────────────────────────────────────────────────────────
-interface Organization {
-  _id: string;
-  orgName: string;
-  description?: string;
-  adviserId?: string;
-  adviser?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Officer {
-  _id: string;
-  userId?: { username: string };
-  position?: string;
-  startTerm?: string;
-  endTerm?: string;
-  orgId?: string;
-}
-
-interface Report {
-  _id: string;
-  orgId?: { _id: string; orgName: string } | string;
-  reportType?: string;
-  status: "pending" | "approved" | "rejected";
-  submittedBy?: { _id: string; username: string };
-  createdAt?: string;
-  updatedAt?: string;
-  description?: string;
-  title?: string;
-}
-
-interface SuccessResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
-interface FailResponse {
-  success: false;
-  status: "fail";
-  message: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared In-Memory Store (same as OrganizationsPage.tsx)
-// ─────────────────────────────────────────────────────────────────────────────
-const SHARED_ORGANIZATIONS: Organization[] = [
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f701",
-    orgName: "Computer Science Society",
-    description: "A community for CS students to collaborate and learn together.",
-    adviserId: "67d8f2a1c9e8b3a4d5e6f7a8",
-    adviser: "john_doe",
-    createdAt: "2025-01-15T08:00:00.000Z",
-    updatedAt: "2025-01-15T08:00:00.000Z",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f702",
-    orgName: "Business Club",
-    description: "Networking and professional development for business students.",
-    adviserId: "67d8f2a1c9e8b3a4d5e6f7a9",
-    adviser: "jane_smith",
-    createdAt: "2025-01-20T10:30:00.000Z",
-    updatedAt: "2025-02-01T14:00:00.000Z",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f703",
-    orgName: "Engineering Society",
-    description: "Promoting excellence in engineering education and practice.",
-    adviserId: "67d8f2a1c9e8b3a4d5e6f7aa",
-    adviser: "mike_adviser",
-    createdAt: "2025-02-05T09:15:00.000Z",
-    updatedAt: "2025-02-10T11:45:00.000Z",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f704",
-    orgName: "Math Club",
-    description: "Exploring the beauty of mathematics through problem-solving and competitions.",
-    adviserId: "67d8f2a1c9e8b3a4d5e6f7ab",
-    adviser: "sarah_connor",
-    createdAt: "2025-02-12T13:00:00.000Z",
-    updatedAt: "2025-02-12T13:00:00.000Z",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data - Pre-populated Officers (per organization)
-// ─────────────────────────────────────────────────────────────────────────────
-const MOCK_OFFICERS: Officer[] = [
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f801",
-    userId: { username: "alice_president" },
-    position: "President",
-    startTerm: "2025-01-01T00:00:00.000Z",
-    endTerm: "2025-12-31T23:59:59.000Z",
-    orgId: "67d8f2a1c9e8b3a4d5e6f701",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f802",
-    userId: { username: "bob_vp" },
-    position: "Vice President",
-    startTerm: "2025-01-01T00:00:00.000Z",
-    endTerm: "2025-12-31T23:59:59.000Z",
-    orgId: "67d8f2a1c9e8b3a4d5e6f701",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f803",
-    userId: { username: "charlie_treasurer" },
-    position: "Treasurer",
-    startTerm: "2025-01-01T00:00:00.000Z",
-    endTerm: "2025-12-31T23:59:59.000Z",
-    orgId: "67d8f2a1c9e8b3a4d5e6f701",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f804",
-    userId: { username: "diana_chair" },
-    position: "Chairperson",
-    startTerm: "2025-02-01T00:00:00.000Z",
-    endTerm: "2026-01-31T23:59:59.000Z",
-    orgId: "67d8f2a1c9e8b3a4d5e6f702",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f805",
-    userId: { username: "eve_secretary" },
-    position: "Secretary",
-    startTerm: "2025-02-01T00:00:00.000Z",
-    endTerm: "2026-01-31T23:59:59.000Z",
-    orgId: "67d8f2a1c9e8b3a4d5e6f702",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f806",
-    userId: { username: "frank_lead" },
-    position: "Lead Engineer",
-    startTerm: "2025-02-05T00:00:00.000Z",
-    endTerm: "2026-02-04T23:59:59.000Z",
-    orgId: "67d8f2a1c9e8b3a4d5e6f703",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data - Pre-populated Reports (per organization)
-// ─────────────────────────────────────────────────────────────────────────────
-const MOCK_REPORTS: Report[] = [
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f901",
-    orgId: { _id: "67d8f2a1c9e8b3a4d5e6f701", orgName: "Computer Science Society" },
-    reportType: "Monthly Activity Report",
-    status: "approved",
-    submittedBy: { _id: "67d8f2a1c9e8b3a4d5e6f801", username: "alice_president" },
-    createdAt: "2025-02-01T10:00:00.000Z",
-    description: "Summary of February activities and events",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f902",
-    orgId: { _id: "67d8f2a1c9e8b3a4d5e6f701", orgName: "Computer Science Society" },
-    reportType: "Event Report",
-    status: "pending",
-    submittedBy: { _id: "67d8f2a1c9e8b3a4d5e6f802", username: "bob_vp" },
-    createdAt: "2025-02-15T14:30:00.000Z",
-    description: "Code-a-thon event summary",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f903",
-    orgId: { _id: "67d8f2a1c9e8b3a4d5e6f702", orgName: "Business Club" },
-    reportType: "Financial Report",
-    status: "approved",
-    submittedBy: { _id: "67d8f2a1c9e8b3a4d5e6f804", username: "diana_chair" },
-    createdAt: "2025-02-10T09:00:00.000Z",
-    description: "Q1 financial summary",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f904",
-    orgId: { _id: "67d8f2a1c9e8b3a4d5e6f702", orgName: "Business Club" },
-    reportType: "Monthly Activity Report",
-    status: "rejected",
-    submittedBy: { _id: "67d8f2a1c9e8b3a4d5e6f805", username: "eve_secretary" },
-    createdAt: "2025-02-20T11:00:00.000Z",
-    description: "Networking event report - needs revision",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f905",
-    orgId: { _id: "67d8f2a1c9e8b3a4d5e6f703", orgName: "Engineering Society" },
-    reportType: "Project Report",
-    status: "pending",
-    submittedBy: { _id: "67d8f2a1c9e8b3a4d5e6f806", username: "frank_lead" },
-    createdAt: "2025-02-18T16:00:00.000Z",
-    description: "Bridge design competition results",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock API Functions
-// ─────────────────────────────────────────────────────────────────────────────
-const mockAPI = {
-  getById(id: string): Promise<SuccessResponse<Organization> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const org = SHARED_ORGANIZATIONS.find((o) => o._id === id);
-        if (org) {
-          resolve({
-            success: true,
-            message: "Organization fetched successfully",
-            data: { ...org },
-          });
-        } else {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Organization not found",
-          });
-        }
-      }, 200);
-    });
-  },
-
-  getOfficersByOrgId(orgId: string): Promise<Officer[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const officers = MOCK_OFFICERS.filter((o) => o.orgId === orgId);
-        resolve(officers);
-      }, 200);
-    });
-  },
-
-  getReportsByOrgId(orgId: string): Promise<Report[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const reports = MOCK_REPORTS.filter(
-          (r) => r.orgId === orgId || (typeof r.orgId === "object" && r.orgId._id === orgId),
-        );
-        resolve(reports);
-      }, 200);
-    });
-  },
-};
+import { orgsAPI, type Org } from "@/api/orgs-api";
+import { officersAPI, type Officer } from "@/api/officers-api";
+import { reportsAPI, type Report } from "@/api/reports-api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
@@ -252,11 +16,103 @@ const mockAPI = {
 export default function OrganizationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [org, setOrg] = useState<Organization | null>(null);
+  const [org, setOrg] = useState<Org | null>(null);
   const [officers, setOfficers] = useState<Officer[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Organization Details
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchOrganization = async (orgId: string) => {
+    try {
+      const response = await orgsAPI.getById(orgId);
+
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
+        setOrg(apiResponse.data);
+      } else {
+        toast.error(apiResponse.message || "Failed to fetch organization");
+      }
+    } catch (error) {
+      toast.error("Failed to fetch organization");
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Officers for Organization
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchOfficers = async (orgId: string) => {
+    try {
+      const response = await officersAPI.getAll({ orgId });
+
+      const apiResponse = response.data;
+
+      // Handle different response structures
+      let officersData: Officer[] = [];
+
+      if (apiResponse.success) {
+        // Case 1: Direct array in data
+        if (Array.isArray(apiResponse.data)) {
+          officersData = apiResponse.data;
+        }
+        // Case 2: Paginated response with items array
+        else if (apiResponse.data && Array.isArray(apiResponse.data.items)) {
+          officersData = apiResponse.data.items;
+        }
+        // Case 3: data is an object with items property
+        else if (apiResponse.data?.items) {
+          officersData = apiResponse.data.items;
+        }
+
+        setOfficers(officersData);
+      } else {
+        toast.error(apiResponse.message || "Failed to fetch officers");
+      }
+    } catch (error) {
+      toast.error("Failed to fetch officers");
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Reports for Organization
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchReports = async (orgId: string) => {
+    try {
+      const response = await reportsAPI.getAll({ orgId });
+
+      const apiResponse = response.data;
+
+      // Handle different response structures
+      let reportsData: Report[] = [];
+
+      if (apiResponse.success) {
+        // Case 1: Direct array in data
+        if (Array.isArray(apiResponse.data)) {
+          reportsData = apiResponse.data;
+        }
+        // Case 2: Paginated response with items array
+        else if (apiResponse.data && Array.isArray(apiResponse.data.items)) {
+          reportsData = apiResponse.data.items;
+        }
+        // Case 3: data is an object with items property
+        else if (apiResponse.data?.items) {
+          reportsData = apiResponse.data.items;
+        }
+
+        setReports(reportsData);
+      } else {
+        toast.error(apiResponse.message || "Failed to fetch reports");
+      }
+    } catch (error) {
+      toast.error("Failed to fetch reports");
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Load All Data
+  // ───────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -266,22 +122,12 @@ export default function OrganizationDetailPage() {
           return;
         }
 
-        const [orgRes, officersData, reportsData] = await Promise.all([
-          mockAPI.getById(id),
-          mockAPI.getOfficersByOrgId(id),
-          mockAPI.getReportsByOrgId(id),
+        await Promise.all([
+          fetchOrganization(id),
+          fetchOfficers(id),
+          fetchReports(id),
         ]);
-
-        if (orgRes.success && "data" in orgRes) {
-          setOrg(orgRes.data);
-        } else {
-          toast.error(orgRes.message);
-        }
-
-        setOfficers(officersData);
-        setReports(reportsData);
       } catch (error) {
-        console.error(error);
         toast.error("Failed to fetch organization details");
       } finally {
         setLoading(false);
@@ -291,6 +137,9 @@ export default function OrganizationDetailPage() {
     fetchData();
   }, [id]);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading State
+  // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -299,6 +148,9 @@ export default function OrganizationDetailPage() {
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Not Found State
+  // ───────────────────────────────────────────────────────────────────────────
   if (!org) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -307,6 +159,22 @@ export default function OrganizationDetailPage() {
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Helper: Get adviser name
+  // ───────────────────────────────────────────────────────────────────────────
+  const getAdviserName = () => {
+    if (typeof org.adviser === "object" && org.adviser !== null) {
+      return org.adviser.username || org.adviser.firstName || "N/A";
+    }
+    if (typeof org.adviser === "string") {
+      return org.adviser;
+    }
+    return "N/A";
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -335,7 +203,7 @@ export default function OrganizationDetailPage() {
         <CardWrapper
           icon={Users}
           label="Adviser"
-          value={org.adviser || "N/A"}
+          value={getAdviserName()}
           color="text-violet-600 bg-violet-50"
         />
       </div>
@@ -374,8 +242,15 @@ export default function OrganizationDetailPage() {
                 className="bg-muted flex items-center justify-between rounded-lg px-4 py-3"
               >
                 <div>
-                  <p className="font-medium">{officer.userId?.username || "Unknown"}</p>
-                  <p className="text-muted-foreground text-sm">{officer.position || "Officer"}</p>
+                  <p className="font-medium">
+                    {officer.userId?.username ||
+                      officer.userId?.firstName ||
+                      officer.name ||
+                      "Unknown"}
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    {officer.position || "Officer"}
+                  </p>
                 </div>
                 <div className="text-muted-foreground text-xs">
                   {officer.startTerm && officer.endTerm
@@ -400,7 +275,7 @@ export default function OrganizationDetailPage() {
                 className="bg-muted flex items-center justify-between rounded-lg px-4 py-3"
               >
                 <div>
-                  <p className="font-medium">{report.reportType || "Unknown"}</p>
+                  <p className="font-medium">{report.reportType || report.title || "Unknown"}</p>
                   <p className="text-muted-foreground text-sm">
                     {report.submittedBy?.username || "Unknown"}
                   </p>
@@ -425,6 +300,9 @@ export default function OrganizationDetailPage() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// CardWrapper Component
+// ─────────────────────────────────────────────────────────────────────────────
 function CardWrapper({
   icon: Icon,
   label,

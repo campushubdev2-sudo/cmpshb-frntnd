@@ -15,26 +15,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import Modal from "@/components/ui/Modal";
+import { orgsAPI, type Org, type User } from "@/api/orgs-api";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types (matching backend response shapes)
+// Types
 // ─────────────────────────────────────────────────────────────────────────────
-interface User {
-  username: string;
-  password: string;
-  role: "admin" | "adviser" | "officer" | "student";
-  email: string;
-  phoneNumber?: string | null | undefined;
-  passwordResetToken?: string | null | undefined;
-  passwordResetExpires?: Date | null | undefined;
-}
-
 interface Organization {
   _id: string;
   orgName: string;
   description?: string;
   adviserId?: string;
-  adviser?: string | null;
+  adviser?: string | { _id: string; username?: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,266 +41,6 @@ interface UpdateOrgInput {
   description?: string;
   adviserId?: string;
 }
-
-interface SuccessResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
-interface FailResponse {
-  success: false;
-  status: "fail";
-  message: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data - Pre-populated Users (advisers)
-// ─────────────────────────────────────────────────────────────────────────────
-const MOCK_USERS: User[] = [
-  {
-    username: "john_doe",
-    password: "hashed_password_123",
-    role: "adviser",
-    email: "john.doe@university.edu",
-    phoneNumber: "+1-555-0101",
-  },
-  {
-    username: "jane_smith",
-    password: "hashed_password_456",
-    role: "adviser",
-    email: "jane.smith@university.edu",
-    phoneNumber: "+1-555-0102",
-  },
-  {
-    username: "mike_adviser",
-    password: "hashed_password_789",
-    role: "adviser",
-    email: "mike.adviser@university.edu",
-    phoneNumber: null,
-  },
-  {
-    username: "sarah_connor",
-    password: "hashed_password_abc",
-    role: "adviser",
-    email: "sarah.connor@university.edu",
-    phoneNumber: "+1-555-0104",
-  },
-  {
-    username: "admin_user",
-    password: "hashed_password_admin",
-    role: "admin",
-    email: "admin@university.edu",
-  },
-  {
-    username: "officer_user",
-    password: "hashed_password_officer",
-    role: "officer",
-    email: "officer@university.edu",
-  },
-  {
-    username: "student_user",
-    password: "hashed_password_student",
-    role: "student",
-    email: "student@university.edu",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data - Pre-populated Organizations
-// ─────────────────────────────────────────────────────────────────────────────
-const INITIAL_ORGANIZATIONS: Organization[] = [
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f701",
-    orgName: "Computer Science Society",
-    description: "A community for CS students to collaborate and learn together.",
-    adviserId: "67d8f2a1c9e8b3a4d5e6f7a8",
-    adviser: "john_doe",
-    createdAt: "2025-01-15T08:00:00.000Z",
-    updatedAt: "2025-01-15T08:00:00.000Z",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f702",
-    orgName: "Business Club",
-    description: "Networking and professional development for business students.",
-    adviserId: "67d8f2a1c9e8b3a4d5e6f7a9",
-    adviser: "jane_smith",
-    createdAt: "2025-01-20T10:30:00.000Z",
-    updatedAt: "2025-02-01T14:00:00.000Z",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f703",
-    orgName: "Engineering Society",
-    description: "Promoting excellence in engineering education and practice.",
-    adviserId: "67d8f2a1c9e8b3a4d5e6f7aa",
-    adviser: "mike_adviser",
-    createdAt: "2025-02-05T09:15:00.000Z",
-    updatedAt: "2025-02-10T11:45:00.000Z",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6f704",
-    orgName: "Math Club",
-    description: "Exploring the beauty of mathematics through problem-solving and competitions.",
-    adviserId: "67d8f2a1c9e8b3a4d5e6f7ab",
-    adviser: "sarah_connor",
-    createdAt: "2025-02-12T13:00:00.000Z",
-    updatedAt: "2025-02-12T13:00:00.000Z",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// In-Memory Store (simulates database)
-// ─────────────────────────────────────────────────────────────────────────────
-let organizations: Organization[] = [...INITIAL_ORGANIZATIONS];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock API Functions (returning backend-compatible responses)
-// ─────────────────────────────────────────────────────────────────────────────
-const mockAPI = {
-  getAll(): Promise<SuccessResponse<Organization[]>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          message: "Organizations fetched successfully",
-          data: [...organizations],
-        });
-      }, 300);
-    });
-  },
-
-  getById(id: string): Promise<SuccessResponse<Organization> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const org = organizations.find((o) => o._id === id);
-        if (org) {
-          resolve({
-            success: true,
-            message: "Organization fetched successfully",
-            data: { ...org },
-          });
-        } else {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Organization not found",
-          });
-        }
-      }, 200);
-    });
-  },
-
-  create(input: CreateOrgInput): Promise<SuccessResponse<Organization> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Validate adviser exists
-        const adviser = MOCK_USERS.find(
-          (u) => u.username === input.adviserId || u.username === input.adviserId,
-        );
-        if (!adviser) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Adviser not found",
-          });
-          return;
-        }
-
-        // Validate orgName is unique
-        const existing = organizations.find((o) => o.orgName.toLowerCase() === input.orgName.toLowerCase());
-        if (existing) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Organization with this name already exists",
-          });
-          return;
-        }
-
-        const now = new Date().toISOString();
-        const newOrg: Organization = {
-          _id: `67d8f2a1c9e8b3a4d5e6f${Math.floor(Math.random() * 10000).toString().padStart(3, "0")}`,
-          orgName: input.orgName,
-          description: input.description,
-          adviserId: input.adviserId,
-          adviser: input.adviserId,
-          createdAt: now,
-          updatedAt: now,
-        };
-        organizations.push(newOrg);
-        resolve({
-          success: true,
-          message: "Organization created successfully",
-          data: { ...newOrg },
-        });
-      }, 300);
-    });
-  },
-
-  update(id: string, input: UpdateOrgInput): Promise<SuccessResponse<Organization> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const orgIndex = organizations.findIndex((o) => o._id === id);
-        if (orgIndex === -1) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Organization not found",
-          });
-          return;
-        }
-
-        // Validate adviser if provided
-        if (input.adviserId) {
-          const adviser = MOCK_USERS.find((u) => u.username === input.adviserId);
-          if (!adviser) {
-            resolve({
-              success: false,
-              status: "fail",
-              message: "Adviser not found",
-            });
-            return;
-          }
-        }
-
-        const updatedOrg: Organization = {
-          ...organizations[orgIndex],
-          ...input,
-          adviser: input.adviserId ?? organizations[orgIndex].adviser,
-          updatedAt: new Date().toISOString(),
-        };
-        organizations[orgIndex] = updatedOrg;
-        resolve({
-          success: true,
-          message: "Organization updated successfully",
-          data: { ...updatedOrg },
-        });
-      }, 300);
-    });
-  },
-
-  delete(id: string): Promise<SuccessResponse<null> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const orgIndex = organizations.findIndex((o) => o._id === id);
-        if (orgIndex === -1) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Organization not found",
-          });
-          return;
-        }
-        organizations.splice(orgIndex, 1);
-        resolve({
-          success: true,
-          message: "Organization deleted successfully",
-          data: null,
-        });
-      }, 300);
-    });
-  },
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Form Validation Schema
@@ -329,7 +60,7 @@ const OrganizationsPage = () => {
   const canManage = authenticatedUser?.role === "admin";
 
   const [orgs, setOrgs] = useState<Organization[]>([]);
-  const [advisers, setAdvisers] = useState<{ id: string; label: string }[]>([]);
+  const [advisers, setAdvisers] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
@@ -348,28 +79,83 @@ const OrganizationsPage = () => {
     resolver: zodResolver(orgSchema),
   });
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Organizations from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchOrgs = async () => {
     try {
       setLoading(true);
-      const response = await mockAPI.getAll();
-      setOrgs(response.data);
+      const response = await orgsAPI.getAll();
+
+      // Backend returns wrapped format: { success, message, data }
+      const apiResponse = response.data;
+
+      // Handle different response structures
+      let organizationsData: Organization[] = [];
+
+      if (apiResponse.success) {
+        // Case 1: Direct array in data
+        if (Array.isArray(apiResponse.data)) {
+          organizationsData = apiResponse.data;
+        }
+        // Case 2: Paginated response with items array
+        else if (apiResponse.data && Array.isArray(apiResponse.data.items)) {
+          organizationsData = apiResponse.data.items;
+        }
+        // Case 3: data is an object with items property
+        else if (apiResponse.data?.items) {
+          organizationsData = apiResponse.data.items;
+        }
+
+        setOrgs(organizationsData);
+      } else {
+        toast.error(apiResponse.message || "Unexpected response from server");
+      }
     } catch (error) {
       toast.error("Failed to fetch organizations");
-      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Advisers from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchAdvisers = async () => {
-    // Filter only users with adviser role
-    const adviserUsers = MOCK_USERS.filter((u) => u.role === "adviser");
-    setAdvisers(
-      adviserUsers.map((user) => ({
-        id: user.username,
-        label: user.username,
-      })),
-    );
+    try {
+      const response = await orgsAPI.getAdvisers();
+
+      // Backend returns wrapped format: { success, message, data }
+      const apiResponse = response.data;
+
+      // Handle different response structures
+      let adviserUsers: User[] = [];
+
+      if (apiResponse.success) {
+        // Case 1: Direct array in data
+        if (Array.isArray(apiResponse.data)) {
+          adviserUsers = apiResponse.data;
+        }
+        // Case 2: Paginated response with items array
+        else if (apiResponse.data && Array.isArray(apiResponse.data.items)) {
+          adviserUsers = apiResponse.data.items;
+        }
+        // Case 3: data is an object with items property
+        else if (apiResponse.data?.items) {
+          adviserUsers = apiResponse.data.items;
+        }
+
+        const formattedAdvisers = adviserUsers.map((user: User) => ({
+          value: user._id,
+          label: user.username,
+        }));
+        setAdvisers(formattedAdvisers);
+      } else {
+        toast.error(apiResponse.message || "Failed to load advisers");
+      }
+    } catch (error) {
+      toast.error("Failed to fetch advisers");
+    }
   };
 
   useEffect(() => {
@@ -377,6 +163,9 @@ const OrganizationsPage = () => {
     fetchAdvisers();
   }, []);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Modal Handlers
+  // ───────────────────────────────────────────────────────────────────────────
   const openCreateModal = () => {
     setEditingOrg(null);
     reset({ orgName: "", description: "", adviserId: "" });
@@ -384,11 +173,30 @@ const OrganizationsPage = () => {
   };
 
   const openEditModal = (org: Organization) => {
+    // Extract adviser ID - handle both string and object cases
+    let adviserIdValue = "";
+
+    // Priority 1: Use adviserId if available
+    if (org.adviserId) {
+      adviserIdValue = org.adviserId;
+    }
+    // Priority 2: If adviser is an object, use its _id
+    else if (typeof org.adviser === "object" && org.adviser !== null) {
+      adviserIdValue = org.adviser._id;
+    }
+    // Priority 3: If adviser is a username string, find the corresponding _id from advisers list
+    else if (typeof org.adviser === "string") {
+      const matchedAdviser = advisers.find((a) => a.label === org.adviser);
+      if (matchedAdviser) {
+        adviserIdValue = matchedAdviser.value;
+      }
+    }
+
     setEditingOrg(org);
     reset({
       orgName: org.orgName,
       description: org.description || "",
-      adviserId: org.adviser || "",
+      adviserId: adviserIdValue,
     });
     setModalOpen(true);
   };
@@ -399,59 +207,77 @@ const OrganizationsPage = () => {
     reset();
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Submit Handler (Create/Update)
+  // ───────────────────────────────────────────────────────────────────────────
   const onSubmit = async (data: CreateOrgInput) => {
     try {
       setSubmitting(true);
       let response;
+
       if (isEditing && editingOrg) {
-        response = await mockAPI.update(editingOrg._id, data);
-        if (response.success) {
+        response = await orgsAPI.update(editingOrg._id, data);
+
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
           toast.success("Organization updated successfully");
         } else {
-          toast.error(response.message);
+          toast.error(apiResponse.message);
           return;
         }
       } else {
-        response = await mockAPI.create(data);
-        if (response.success) {
+        response = await orgsAPI.create(data);
+
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
           toast.success("Organization created successfully");
         } else {
-          toast.error(response.message);
+          toast.error(apiResponse.message);
           return;
         }
       }
+
       closeModal();
       fetchOrgs();
     } catch (error) {
-      console.error(error);
       toast.error(isEditing ? "Failed to update organization" : "Failed to create organization");
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Delete Handler
+  // ───────────────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     try {
       setDeleting(true);
       if (deleteTarget) {
-        const response = await mockAPI.delete(deleteTarget._id);
-        if (response.success) {
+        const response = await orgsAPI.delete(deleteTarget._id);
+
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
           toast.success("Organization deleted successfully");
         } else {
-          toast.error(response.message);
+          toast.error(apiResponse.message);
           return;
         }
       }
       setDeleteTarget(null);
       fetchOrgs();
     } catch (error) {
-      console.error(error);
       toast.error("Failed to delete organization");
     } finally {
       setDeleting(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Table Columns
+  // ───────────────────────────────────────────────────────────────────────────
   const columns = [
     {
       header: "Name",
@@ -480,7 +306,8 @@ const OrganizationsPage = () => {
     {
       header: "Created At",
       accessorKey: "createdAt",
-      cell: (row: Organization) => (row.createdAt ? format(new Date(row.createdAt), "MMM dd, yyyy") : "—"),
+      cell: (row: Organization) =>
+        row.createdAt ? format(new Date(row.createdAt), "MMM dd, yyyy") : "—",
     },
     ...(canManage
       ? [
@@ -586,7 +413,8 @@ const OrganizationsPage = () => {
         <Modal isOpen={true} onClose={() => setDeleteTarget(null)} title="Confirm Delete">
           <div className="space-y-4">
             <p>
-              Are you sure you want to delete <strong>{deleteTarget.orgName}</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong>{deleteTarget.orgName}</strong>? This action
+              cannot be undone.
             </p>
             <div className="flex justify-end gap-3">
               <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>

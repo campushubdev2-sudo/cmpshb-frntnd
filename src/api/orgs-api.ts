@@ -1,5 +1,8 @@
 import apiClient from "./client";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 export interface Org {
   _id: string;
   orgName: string;
@@ -16,16 +19,65 @@ export interface OrgStats {
   [key: string]: number;
 }
 
+export interface User {
+  _id: string;
+  username: string;
+  role: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  [key: string]: any;
+}
+
+// Backend wrapped response format
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API Functions
+// ─────────────────────────────────────────────────────────────────────────────
 export const orgsAPI = {
-  getAll: (params?: Record<string, any>) => apiClient.get<Org[]>("/orgs", { params }),
+  /**
+   * Fetch all organizations with wrapped response format
+   */
+  getAll: (params?: Record<string, any>) =>
+    apiClient.get<ApiResponse<Org[]>>("/orgs", { params }),
 
-  getById: (id: string) => apiClient.get<Org>(`/orgs/${id}`),
+  /**
+   * Fetch single organization by ID with wrapped response format
+   */
+  getById: (id: string) =>
+    apiClient.get<ApiResponse<Org>>(`/orgs/${id}`),
 
-  create: (data: { orgName: string; description?: string; adviserId?: string }) => apiClient.post<Org>("/orgs", data),
+  /**
+   * Create new organization with wrapped response format
+   */
+  create: (data: { orgName: string; description?: string; adviserId?: string }) =>
+    apiClient.post<ApiResponse<Org>>("/orgs", data),
 
-  update: (id: string, data: { orgName?: string; description?: string; adviserId?: string }) => apiClient.put<Org>(`/orgs/${id}`, data),
+  /**
+   * Update organization with wrapped response format
+   */
+  update: (
+    id: string,
+    data: { orgName?: string; description?: string; adviserId?: string },
+  ) => apiClient.put<ApiResponse<Org>>(`/orgs/${id}`, data),
 
-  delete: (id: string) => apiClient.delete<void>(`/orgs/${id}`),
+  /**
+   * Delete organization with wrapped response format
+   */
+  delete: (id: string) => apiClient.delete<ApiResponse<null>>(`/orgs/${id}`),
 
-  getStats: () => apiClient.get<OrgStats>("/orgs/stats"),
+  /**
+   * Get organization statistics
+   */
+  getStats: () => apiClient.get<ApiResponse<OrgStats>>("/orgs/stats"),
+
+  /**
+   * Fetch advisers from users endpoint with role filter
+   */
+  getAdvisers: () => apiClient.get<ApiResponse<User[]>>("/users", { params: { role: "adviser" } }),
 };

@@ -1,9 +1,17 @@
 import apiClient from "./client";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 export interface Officer {
   _id: string;
-  name: string;
+  userId?: { _id: string; username: string; firstName?: string; lastName?: string };
   position?: string;
+  startTerm?: string;
+  endTerm?: string;
+  orgId?: { _id: string; orgName: string } | string;
+  createdAt?: string;
+  updatedAt?: string;
   [key: string]: any;
 }
 
@@ -12,6 +20,7 @@ export interface GetOfficersParams {
   limit?: number;
   search?: string;
   position?: string;
+  orgId?: string;
   [key: string]: any;
 }
 
@@ -20,16 +29,50 @@ export interface OfficerStats {
   [key: string]: any;
 }
 
+// Backend wrapped response format
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API Functions
+// ─────────────────────────────────────────────────────────────────────────────
 export const officersAPI = {
-  getAll: (params?: GetOfficersParams) => apiClient.get<Officer[]>("/officers", { params }),
+  /**
+   * Fetch all officers with optional filtering (including by orgId)
+   */
+  getAll: (params?: GetOfficersParams) =>
+    apiClient.get<ApiResponse<Officer[]>>("/officers", { params }),
 
-  getById: (id: string) => apiClient.get<Officer>(`/officers/${id}`),
+  /**
+   * Fetch single officer by ID
+   */
+  getById: (id: string) =>
+    apiClient.get<ApiResponse<Officer>>(`/officers/${id}`),
 
-  create: (data: Partial<Officer>) => apiClient.post<Officer>("/officers", data),
+  /**
+   * Create new officer
+   */
+  create: (data: Partial<Officer>) =>
+    apiClient.post<ApiResponse<Officer>>("/officers", data),
 
-  update: (id: string, data: Partial<Officer>) => apiClient.put<Officer>(`/officers/${id}`, data),
+  /**
+   * Update officer
+   */
+  update: (id: string, data: Partial<Officer>) =>
+    apiClient.put<ApiResponse<Officer>>(`/officers/${id}`, data),
 
-  delete: (id: string) => apiClient.delete<void>(`/officers/${id}`),
+  /**
+   * Delete officer
+   */
+  delete: (id: string) =>
+    apiClient.delete<ApiResponse<null>>(`/officers/${id}`),
 
-  getStats: () => apiClient.get<OfficerStats>("/officers/stats/overview"),
+  /**
+   * Get officer statistics
+   */
+  getStats: () =>
+    apiClient.get<ApiResponse<OfficerStats>>("/officers/stats/overview"),
 };

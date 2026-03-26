@@ -1,10 +1,13 @@
 import apiClient from "./client";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 export type ReportStatus = "pending" | "approved" | "rejected";
 
 export interface Report {
   _id: string;
-  orgId?: { _id: string; orgName: string };
+  orgId?: { _id: string; orgName: string } | string;
   reportType?: string;
   status: ReportStatus;
   submittedBy?: { _id: string; username: string };
@@ -16,20 +19,52 @@ export interface Report {
   message?: string;
 }
 
+// Backend wrapped response format
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// API Functions
+// ─────────────────────────────────────────────────────────────────────────────
 export const reportsAPI = {
-  getAll: (params?: Record<string, any>) => apiClient.get<Report[]>("/reports", { params }),
+  /**
+   * Fetch all reports with optional filtering (including by orgId)
+   */
+  getAll: (params?: { orgId?: string; [key: string]: any }) =>
+    apiClient.get<ApiResponse<Report[]>>("/reports", { params }),
 
-  getById: (id: string) => apiClient.get<Report>(`/reports/${id}`),
+  /**
+   * Fetch single report by ID
+   */
+  getById: (id: string) =>
+    apiClient.get<ApiResponse<Report>>(`/reports/${id}`),
 
+  /**
+   * Create new report (with file upload support)
+   */
   create: (data: FormData) =>
-    apiClient.post<Report>("/reports", data, {
+    apiClient.post<ApiResponse<Report>>("/reports", data, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
 
-  update: (id: string, data: Partial<Report>) => apiClient.put<Report>(`/reports/${id}`, data),
+  /**
+   * Update report
+   */
+  update: (id: string, data: Partial<Report>) =>
+    apiClient.put<ApiResponse<Report>>(`/reports/${id}`, data),
 
-  delete: (id: string) => apiClient.delete<void>(`/reports/${id}`),
+  /**
+   * Delete report
+   */
+  delete: (id: string) =>
+    apiClient.delete<ApiResponse<null>>(`/reports/${id}`),
 
+  /**
+   * Update report status (approve/reject)
+   */
   updateStatus: (id: string, data: { status: string; message?: string }) =>
-    apiClient.put<Report>(`/reports/${id}`, data),
+    apiClient.put<ApiResponse<Report>>(`/reports/${id}`, data),
 };
