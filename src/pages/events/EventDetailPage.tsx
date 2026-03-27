@@ -6,162 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types (matching backend response shapes and EventsPage.tsx)
-// ─────────────────────────────────────────────────────────────────────────────
-interface SchoolEvent {
-  _id: string;
-  title: string;
-  objective?: string;
-  allDay: boolean;
-  startDate: string;
-  endDate: string;
-  startTime?: string;
-  endTime?: string;
-  venue: string;
-  organizedBy: "admin" | "department";
-  createdAt: string;
-  updatedAt: string;
-  description?: string;
-  status?: "upcoming" | "ongoing" | "completed" | "cancelled";
-}
-
-interface SuccessResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
-interface FailResponse {
-  success: false;
-  status: "fail";
-  message: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared In-Memory Store (same as EventsPage.tsx)
-// ─────────────────────────────────────────────────────────────────────────────
-const SHARED_EVENTS: SchoolEvent[] = [
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e001",
-    title: "Welcome Orientation 2025",
-    objective: "Introduce new students to campus life and resources",
-    allDay: true,
-    startDate: "2025-03-01T00:00:00.000Z",
-    endDate: "2025-03-01T23:59:59.000Z",
-    venue: "Main Auditorium",
-    organizedBy: "admin",
-    createdAt: "2025-01-10T08:00:00.000Z",
-    updatedAt: "2025-01-10T08:00:00.000Z",
-    description: "Annual orientation program for freshmen",
-    status: "completed",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e002",
-    title: "CS Department Career Fair",
-    objective: "Connect students with tech companies for internships and jobs",
-    allDay: false,
-    startDate: "2025-03-15T00:00:00.000Z",
-    endDate: "2025-03-15T23:59:59.000Z",
-    startTime: "09:00",
-    endTime: "17:00",
-    venue: "Engineering Building Lobby",
-    organizedBy: "department",
-    createdAt: "2025-01-15T10:00:00.000Z",
-    updatedAt: "2025-02-01T14:30:00.000Z",
-    description: "Spring 2025 Career Fair featuring 50+ tech companies",
-    status: "ongoing",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e003",
-    title: "Student Leadership Summit",
-    objective: "Develop leadership skills among student officers",
-    allDay: false,
-    startDate: "2025-03-28T00:00:00.000Z",
-    endDate: "2025-03-28T23:59:59.000Z",
-    startTime: "08:00",
-    endTime: "16:00",
-    venue: "Conference Center Hall A",
-    organizedBy: "admin",
-    createdAt: "2025-02-01T09:00:00.000Z",
-    updatedAt: "2025-02-10T11:00:00.000Z",
-    description: "Full-day leadership training workshop",
-    status: "upcoming",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e004",
-    title: "Intramural Sports Festival",
-    objective: "Promote physical fitness and team spirit",
-    allDay: true,
-    startDate: "2025-04-05T00:00:00.000Z",
-    endDate: "2025-04-06T23:59:59.000Z",
-    venue: "University Sports Complex",
-    organizedBy: "admin",
-    createdAt: "2025-02-05T13:00:00.000Z",
-    updatedAt: "2025-02-05T13:00:00.000Z",
-    description: "Annual sports competition with multiple events",
-    status: "upcoming",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e005",
-    title: "Research Symposium",
-    objective: "Showcase undergraduate and graduate research projects",
-    allDay: false,
-    startDate: "2025-04-20T00:00:00.000Z",
-    endDate: "2025-04-20T23:59:59.000Z",
-    startTime: "10:00",
-    endTime: "18:00",
-    venue: "Science Building Atrium",
-    organizedBy: "department",
-    createdAt: "2025-02-10T08:30:00.000Z",
-    updatedAt: "2025-02-15T16:00:00.000Z",
-    description: "Present research findings to faculty and peers",
-    status: "upcoming",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e006",
-    title: "Cultural Night 2025",
-    objective: "Celebrate diversity through performances and food",
-    allDay: false,
-    startDate: "2025-02-14T00:00:00.000Z",
-    endDate: "2025-02-14T23:59:59.000Z",
-    startTime: "18:00",
-    endTime: "22:00",
-    venue: "Student Center Ballroom",
-    organizedBy: "admin",
-    createdAt: "2025-01-05T10:00:00.000Z",
-    updatedAt: "2025-01-20T09:00:00.000Z",
-    description: "Annual cultural celebration event - cancelled due to venue issues",
-    status: "cancelled",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock API Functions
-// ─────────────────────────────────────────────────────────────────────────────
-const mockAPI = {
-  getById(id: string): Promise<SuccessResponse<SchoolEvent> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const event = SHARED_EVENTS.find((e) => e._id === id);
-        if (event) {
-          resolve({
-            success: true,
-            message: "Event fetched successfully",
-            data: { ...event },
-          });
-        } else {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Event not found",
-          });
-        }
-      }, 200);
-    });
-  },
-};
+import { eventsAPI, type SchoolEvent } from "@/api/events-api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Status Badge Configuration
@@ -198,6 +43,9 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<SchoolEvent | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Event from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchEvent = async () => {
       try {
@@ -206,14 +54,17 @@ export default function EventDetailPage() {
           toast.error("Invalid event ID");
           return;
         }
-        const response = await mockAPI.getById(id);
-        if (response.success && "data" in response) {
-          setEvent(response.data);
+
+        const response = await eventsAPI.getById(id);
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
+          setEvent(apiResponse.data);
         } else {
-          toast.error(response.message);
+          toast.error(apiResponse.message || "Failed to fetch event");
         }
-      } catch (error) {
-        console.error(error);
+      } catch (error: any) {
+        console.error("Error fetching event:", error);
         toast.error("Failed to fetch event details");
       } finally {
         setLoading(false);
@@ -223,6 +74,9 @@ export default function EventDetailPage() {
     fetchEvent();
   }, [id]);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading State
+  // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -231,6 +85,9 @@ export default function EventDetailPage() {
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Not Found State
+  // ───────────────────────────────────────────────────────────────────────────
   if (!event) {
     return (
       <div className="py-12 text-center">
@@ -244,6 +101,9 @@ export default function EventDetailPage() {
 
   const statusConfig = STATUS_CONFIG[event.status || "upcoming"] || STATUS_CONFIG.upcoming;
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { type ColumnDef } from "@tanstack/react-table";
 import {
   Plus,
@@ -31,233 +31,36 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import DataTable from "@/components/shared/DataTable";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useAuthentication } from "@/contexts/AuthContext";
+import {
+  eventNotificationsAPI,
+  type EventNotification,
+  type EventNotification as BackendNotification,
+} from "@/api/notifications-api";
+import { eventsAPI } from "@/api/events-api";
+import { usersAPI, type User } from "@/api/users-api";
 
-// --- Mock Data ---
-
-interface MockEvent {
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+interface Event {
   _id: string;
   title: string;
-  allDay: boolean;
-  startDate: string;
-  endDate: string;
-  venue: string;
-  organizedBy: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
-interface MockUser {
-  _id: string;
-  username: string;
-  role: string;
-  email: string;
-  phoneNumber: string;
-  createdAt: string;
-  updatedAt: string;
+interface Notification extends EventNotification {
+  eventTitle?: string;
+  recipientUsername?: string;
 }
 
-interface MockNotification {
-  _id: string;
-  eventId: string | MockEvent;
-  recipientId: string | MockUser;
-  message: string;
-  status: "sent" | "failed" | "read";
-  sentAt: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const mockEvents: MockEvent[] = [
-  {
-    _id: "69c0728bb53b486ee677318d",
-    title: "Annual Tech Summit 2026",
-    allDay: true,
-    startDate: "2026-03-23T00:00:00.000Z",
-    endDate: "2026-03-25T00:00:00.000Z",
-    venue: "Main Conference Hall",
-    organizedBy: "admin",
-    createdAt: "2026-03-22T22:51:55.310Z",
-    updatedAt: "2026-03-22T22:51:55.310Z",
-  },
-  {
-    _id: "69c0728bb53b486ee677318e",
-    title: "Student Leadership Workshop",
-    allDay: false,
-    startDate: "2026-04-01T09:00:00.000Z",
-    endDate: "2026-04-01T17:00:00.000Z",
-    venue: "Room 301, Academic Building",
-    organizedBy: "adviser",
-    createdAt: "2026-03-20T10:30:00.000Z",
-    updatedAt: "2026-03-20T10:30:00.000Z",
-  },
-  {
-    _id: "69c0728bb53b486ee677318f",
-    title: "Campus Career Fair",
-    allDay: true,
-    startDate: "2026-04-15T00:00:00.000Z",
-    endDate: "2026-04-15T00:00:00.000Z",
-    venue: "Student Center Plaza",
-    organizedBy: "admin",
-    createdAt: "2026-03-18T14:20:00.000Z",
-    updatedAt: "2026-03-18T14:20:00.000Z",
-  },
-  {
-    _id: "69c0728bb53b486ee6773190",
-    title: "Research Symposium",
-    allDay: false,
-    startDate: "2026-05-10T08:00:00.000Z",
-    endDate: "2026-05-10T18:00:00.000Z",
-    venue: "Science Building Auditorium",
-    organizedBy: "admin",
-    createdAt: "2026-03-15T09:00:00.000Z",
-    updatedAt: "2026-03-15T09:00:00.000Z",
-  },
-];
-
-const mockUsers: MockUser[] = [
-  {
-    _id: "69be9188c8cbba2826335ced",
-    username: "maria",
-    role: "admin",
-    email: "maria@gmail.com",
-    phoneNumber: "+639052902433",
-    createdAt: "2026-03-21T12:39:36.819Z",
-    updatedAt: "2026-03-21T12:39:36.819Z",
-  },
-  {
-    _id: "69be9188c8cbba2826335cee",
-    username: "john_doe",
-    role: "student",
-    email: "john.doe@university.edu",
-    phoneNumber: "+639123456789",
-    createdAt: "2026-03-20T08:15:00.000Z",
-    updatedAt: "2026-03-20T08:15:00.000Z",
-  },
-  {
-    _id: "69be9188c8cbba2826335cef",
-    username: "jane_smith",
-    role: "faculty",
-    email: "jane.smith@university.edu",
-    phoneNumber: "+639987654321",
-    createdAt: "2026-03-19T14:30:00.000Z",
-    updatedAt: "2026-03-19T14:30:00.000Z",
-  },
-  {
-    _id: "69be9188c8cbba2826335cf0",
-    username: "alex_wong",
-    role: "student",
-    email: "alex.wong@university.edu",
-    phoneNumber: "+639112233445",
-    createdAt: "2026-03-18T11:00:00.000Z",
-    updatedAt: "2026-03-18T11:00:00.000Z",
-  },
-  {
-    _id: "69be9188c8cbba2826335cf1",
-    username: "sarah_connor",
-    role: "adviser",
-    email: "sarah.connor@university.edu",
-    phoneNumber: "+639556677889",
-    createdAt: "2026-03-17T16:45:00.000Z",
-    updatedAt: "2026-03-17T16:45:00.000Z",
-  },
-  {
-    _id: "69be9188c8cbba2826335cf2",
-    username: "mike_ross",
-    role: "student",
-    email: "mike.ross@university.edu",
-    phoneNumber: "+639443322110",
-    createdAt: "2026-03-16T09:20:00.000Z",
-    updatedAt: "2026-03-16T09:20:00.000Z",
-  },
-  {
-    _id: "69be9188c8cbba2826335cf3",
-    username: "emily_chen",
-    role: "faculty",
-    email: "emily.chen@university.edu",
-    phoneNumber: "+639887766554",
-    createdAt: "2026-03-15T13:10:00.000Z",
-    updatedAt: "2026-03-15T13:10:00.000Z",
-  },
-];
-
-const generateMockNotifications = (): MockNotification[] => {
-  const now = new Date();
-  return [
-    {
-      _id: "69c2d99b6ea4ec8cd5e1046a",
-      eventId: mockEvents[0],
-      recipientId: mockUsers[0],
-      message: "You are invited to attend this event. We look forward to your participation!",
-      status: "sent",
-      sentAt: new Date(now.getTime() - 86400000).toISOString(),
-      createdAt: new Date(now.getTime() - 86400000).toISOString(),
-      updatedAt: new Date(now.getTime() - 86400000).toISOString(),
-    },
-    {
-      _id: "69c2d99b6ea4ec8cd5e1046b",
-      eventId: mockEvents[0],
-      recipientId: mockUsers[1],
-      message: "You are invited to attend this event. We look forward to your participation!",
-      status: "read",
-      sentAt: new Date(now.getTime() - 86400000).toISOString(),
-      createdAt: new Date(now.getTime() - 86400000).toISOString(),
-      updatedAt: new Date(now.getTime() - 82800000).toISOString(),
-    },
-    {
-      _id: "69c2d99b6ea4ec8cd5e1046c",
-      eventId: mockEvents[1],
-      recipientId: mockUsers[2],
-      message:
-        "This is a friendly reminder about an upcoming event. Please make sure to attend on time.",
-      status: "sent",
-      sentAt: new Date(now.getTime() - 172800000).toISOString(),
-      createdAt: new Date(now.getTime() - 172800000).toISOString(),
-      updatedAt: new Date(now.getTime() - 172800000).toISOString(),
-    },
-    {
-      _id: "69c2d99b6ea4ec8cd5e1046d",
-      eventId: mockEvents[2],
-      recipientId: mockUsers[3],
-      message:
-        "There has been an important update regarding this event. Please check the event details for more information.",
-      status: "failed",
-      sentAt: new Date(now.getTime() - 259200000).toISOString(),
-      createdAt: new Date(now.getTime() - 259200000).toISOString(),
-      updatedAt: new Date(now.getTime() - 259200000).toISOString(),
-    },
-    {
-      _id: "69c2d99b6ea4ec8cd5e1046e",
-      eventId: mockEvents[3],
-      recipientId: mockUsers[4],
-      message: "You are invited to attend this event. We look forward to your participation!",
-      status: "sent",
-      sentAt: new Date(now.getTime() - 345600000).toISOString(),
-      createdAt: new Date(now.getTime() - 345600000).toISOString(),
-      updatedAt: new Date(now.getTime() - 345600000).toISOString(),
-    },
-    {
-      _id: "69c2d99b6ea4ec8cd5e1046f",
-      eventId: mockEvents[1],
-      recipientId: mockUsers[5],
-      message:
-        "This is a friendly reminder about an upcoming event. Please make sure to attend on time.",
-      status: "read",
-      sentAt: new Date(now.getTime() - 432000000).toISOString(),
-      createdAt: new Date(now.getTime() - 432000000).toISOString(),
-      updatedAt: new Date(now.getTime() - 428400000).toISOString(),
-    },
-    {
-      _id: "69c2d99b6ea4ec8cd5e10470",
-      eventId: mockEvents[2],
-      recipientId: mockUsers[6],
-      message: "You are invited to attend this event. We look forward to your participation!",
-      status: "sent",
-      sentAt: new Date(now.getTime() - 518400000).toISOString(),
-      createdAt: new Date(now.getTime() - 518400000).toISOString(),
-      updatedAt: new Date(now.getTime() - 518400000).toISOString(),
-    },
-  ];
+// ─────────────────────────────────────────────────────────────────────────────
+// UI Configuration
+// ─────────────────────────────────────────────────────────────────────────────
+const statusBadgeVariant: Record<string, "default" | "secondary" | "destructive"> = {
+  sent: "default",
+  read: "secondary",
+  failed: "destructive",
 };
 
 const MESSAGE_TEMPLATES = [
@@ -282,54 +85,144 @@ const MESSAGE_TEMPLATES = [
   },
 ];
 
-const statusBadgeVariant: Record<
-  string,
-  "default" | "secondary" | "destructive" | "outline" | "ghost" | "link"
-> = {
-  sent: "default",
-  read: "secondary",
-  failed: "destructive",
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Normalize backend notification
+// ─────────────────────────────────────────────────────────────────────────────
+const normalizeNotification = (notif: BackendNotification): Notification => {
+  return {
+    ...notif,
+    eventTitle: typeof notif.eventId === "object" && notif.eventId !== null ? notif.eventId.title : undefined,
+    recipientUsername: typeof notif.recipientId === "object" && notif.recipientId !== null ? notif.recipientId.username : undefined,
+  };
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
 export default function NotificationsPage() {
   const { authenticatedUser } = useAuthentication();
   const canManage = authenticatedUser?.role === "admin" || authenticatedUser?.role === "adviser";
 
-  const [notifications, setNotifications] = useState<MockNotification[]>(() =>
-    generateMockNotifications(),
-  );
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [eventOptions, setEventOptions] = useState<SelectOption[]>([]);
-  const [allUsers, setAllUsers] = useState<MockUser[]>(mockUsers);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<MockNotification | null>(null);
-  const [viewTarget, setViewTarget] = useState<MockNotification | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Notification | null>(null);
+  const [viewTarget, setViewTarget] = useState<Notification | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Form state (managed manually for multi-select support)
+  // Form state
   const [formEventId, setFormEventId] = useState("");
   const [formMessage, setFormMessage] = useState("");
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState("");
 
-  // Initialize event options on mount
-  useState(() => {
-    setEventOptions(
-      mockEvents.map((e) => ({
-        value: e._id,
-        label: e.title,
-      })),
-    );
-  });
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Notifications
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      const response = await eventNotificationsAPI.getAll({ limit: 100, order: "desc" });
+      const apiResponse = response.data;
 
+      if (apiResponse.success) {
+        let notificationsData: any[] = [];
+        
+        // Handle different response structures
+        if (Array.isArray(apiResponse.data)) {
+          notificationsData = apiResponse.data;
+        } else if (apiResponse.data?.docs && Array.isArray(apiResponse.data.docs)) {
+          notificationsData = apiResponse.data.docs;
+        }
+        
+        const normalized = notificationsData.map(normalizeNotification);
+        setNotifications(normalized);
+      } else {
+        setNotifications([]);
+      }
+    } catch (error: any) {
+      console.error("Error fetching notifications:", error);
+      const message = error?.response?.data?.message || error?.message || "Failed to fetch notifications";
+      toast.error(message);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Events for dropdown
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchEvents = async () => {
+    try {
+      // Fetch all events without type filter to ensure we get events for the dropdown
+      const response = await eventsAPI.getAll({ limit: 100, paginate: false });
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
+        let eventsData: any[] = [];
+        
+        // Handle different response structures
+        if (Array.isArray(apiResponse.data)) {
+          eventsData = apiResponse.data;
+        } else if (apiResponse.data && Array.isArray(apiResponse.data.docs)) {
+          eventsData = apiResponse.data.docs;
+        }
+
+        setEventOptions(
+          eventsData.map((e) => ({
+            value: e._id,
+            label: e.title,
+          })),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to fetch events:", error);
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Users
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchUsers = async () => {
+    try {
+      const response = await usersAPI.getAll({ limit: 100 });
+      const apiResponse = response.data;
+
+      if (apiResponse.success && Array.isArray(apiResponse.data)) {
+        setAllUsers(apiResponse.data);
+      } else {
+        setAllUsers([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch users:", error);
+      setAllUsers([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    fetchEvents();
+    fetchUsers();
+  }, []);
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Memoized filtered users
+  // ───────────────────────────────────────────────────────────────────────────
   const filteredUsers = useMemo(() => {
     if (!userSearch.trim()) return allUsers;
     const q = userSearch.toLowerCase();
     return allUsers.filter(
-      (u) => u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+      (u) => u.username.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q),
     );
   }, [allUsers, userSearch]);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Modal Handlers
+  // ───────────────────────────────────────────────────────────────────────────
   const openModal = () => {
     setFormEventId("");
     setFormMessage("");
@@ -364,14 +257,9 @@ export default function NotificationsPage() {
     setFormMessage(template.message);
   };
 
-  const getEventById = (id: string): MockEvent | undefined => {
-    return mockEvents.find((e) => e._id === id);
-  };
-
-  const getUserById = (id: string): MockUser | undefined => {
-    return allUsers.find((u) => u._id === id);
-  };
-
+  // ───────────────────────────────────────────────────────────────────────────
+  // Form Submission
+  // ───────────────────────────────────────────────────────────────────────────
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formEventId) {
@@ -389,104 +277,119 @@ export default function NotificationsPage() {
     try {
       setSubmitting(true);
 
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const now = new Date().toISOString();
-      const newNotifications: MockNotification[] = selectedUserIds.map((recipientId, index) => ({
-        _id: `mock-${Date.now()}-${index}`,
+      // Use bulk create endpoint
+      const payload = {
         eventId: formEventId,
-        recipientId,
+        recipientIds: selectedUserIds,
         message: formMessage.trim(),
-        status: "sent",
-        sentAt: now,
-        createdAt: now,
-        updatedAt: now,
-      }));
+      };
 
-      setNotifications((prev) => [...newNotifications, ...prev]);
+      const response = await eventNotificationsAPI.createBulk(payload);
+      const apiResponse = response.data;
 
-      toast.success(
-        `Notification sent to ${selectedUserIds.length} recipient${selectedUserIds.length > 1 ? "s" : ""}`,
-      );
-      closeModal();
-    } catch (error: unknown) {
-      const message =
-        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to send notification";
+      if (apiResponse.success) {
+        const count = apiResponse.data?.notifications?.length || selectedUserIds.length;
+        toast.success(
+          `Notification sent to ${count} recipient${count > 1 ? "s" : ""}${apiResponse.data?.skippedDuplicates ? ` (${apiResponse.data.skippedDuplicates} duplicates skipped)` : ""}`,
+        );
+        closeModal();
+        fetchNotifications();
+      } else {
+        toast.error(apiResponse.message || "Failed to send notification");
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to send notification";
       toast.error(message);
+      console.error(error);
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Delete Handler
+  // ───────────────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     try {
       setDeleting(true);
-
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
       if (deleteTarget) {
-        setNotifications((prev) => prev.filter((n) => n._id !== deleteTarget._id));
-      }
+        const response = await eventNotificationsAPI.delete(deleteTarget._id);
+        const apiResponse = response.data;
 
-      toast.success("Notification deleted successfully");
-      setDeleteTarget(null);
-    } catch (error: unknown) {
-      const message =
-        (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to delete notification";
+        if (apiResponse.success) {
+          toast.success("Notification deleted successfully");
+          setDeleteTarget(null);
+          fetchNotifications();
+        } else {
+          toast.error(apiResponse.message || "Failed to delete notification");
+        }
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to delete notification";
       toast.error(message);
+      console.error(error);
     } finally {
       setDeleting(false);
     }
   };
 
-  const columns: ColumnDef<MockNotification>[] = [
+  // ───────────────────────────────────────────────────────────────────────────
+  // Helper functions
+  // ───────────────────────────────────────────────────────────────────────────
+  const getEventTitle = (eventId: string | object | null): string => {
+    if (!eventId) return "—";
+    if (typeof eventId === "object") {
+      return (eventId as any).title || "—";
+    }
+    const event = eventOptions.find((e) => e.value === eventId);
+    return event?.label || "—";
+  };
+
+  const getRecipientUsername = (recipientId: string | object | null): string => {
+    if (!recipientId) return "—";
+    if (typeof recipientId === "object") {
+      return (recipientId as any).username || "—";
+    }
+    const user = allUsers.find((u) => u._id === recipientId);
+    return user?.username || "—";
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Table Columns
+  // ───────────────────────────────────────────────────────────────────────────
+  const columns: ColumnDef<Notification>[] = [
     {
       header: "Event",
       accessorKey: "eventId",
-      cell: (row: MockNotification) => {
-        const event = typeof row.eventId === "string" ? getEventById(row.eventId) : row.eventId;
-        return event?.title || "—";
-      },
+      cell: (row: Notification) => getEventTitle(row.eventId),
     },
     {
       header: "Recipient",
       accessorKey: "recipientId",
-      cell: (row: MockNotification) => {
-        const user =
-          typeof row.recipientId === "string" ? getUserById(row.recipientId) : row.recipientId;
-        return user?.username || "—";
-      },
+      cell: (row: Notification) => getRecipientUsername(row.recipientId),
     },
     {
       header: "Message",
       accessorKey: "message",
-      cell: (row: MockNotification) =>
-        row.message
-          ? row.message.length > 50
-            ? `${row.message.substring(0, 50)}...`
-            : row.message
-          : "—",
+      cell: (row: Notification) =>
+        row.message ? (row.message.length > 50 ? `${row.message.substring(0, 50)}...` : row.message) : "—",
     },
     {
       header: "Status",
       accessorKey: "status",
-      cell: (row: MockNotification) => (
+      cell: (row: Notification) => (
         <Badge variant={statusBadgeVariant[row.status] || "default"}>{row.status}</Badge>
       ),
     },
     {
       header: "Sent At",
       accessorKey: "sentAt",
-      cell: (row: MockNotification) => format(new Date(row.sentAt), "MMM dd, yyyy HH:mm"),
+      cell: (row: Notification) => format(new Date(row.sentAt), "MMM dd, yyyy HH:mm"),
     },
     {
       header: "Actions",
       accessorKey: "actions",
-      cell: (row: MockNotification) => (
+      cell: (row: Notification) => (
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setViewTarget(row)}>
             <Eye className="mr-1 h-4 w-4" />
@@ -502,6 +405,20 @@ export default function NotificationsPage() {
     },
   ];
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading State
+  // ───────────────────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <>
       <title>CampusHub | Notifications</title>
@@ -578,7 +495,7 @@ export default function NotificationsPage() {
                   {selectedUserIds.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {selectedUserIds.slice(0, 8).map((uid) => {
-                        const u = getUserById(uid);
+                        const u = allUsers.find((user) => user._id === uid);
                         return (
                           <span
                             key={uid}
@@ -769,18 +686,12 @@ export default function NotificationsPage() {
               <div className="space-y-4 text-sm">
                 <div>
                   <span className="text-muted-foreground font-medium">Event:</span>{" "}
-                  <span className="text-foreground">
-                    {typeof viewTarget.eventId === "string"
-                      ? getEventById(viewTarget.eventId)?.title || "—"
-                      : viewTarget.eventId?.title || "—"}
-                  </span>
+                  <span className="text-foreground">{getEventTitle(viewTarget.eventId)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground font-medium">Recipient:</span>{" "}
                   <span className="text-foreground">
-                    {typeof viewTarget.recipientId === "string"
-                      ? getUserById(viewTarget.recipientId)?.username || "—"
-                      : viewTarget.recipientId?.username || "—"}
+                    {getRecipientUsername(viewTarget.recipientId)}
                   </span>
                 </div>
                 <div>

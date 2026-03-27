@@ -3,30 +3,19 @@ import apiClient from "./client";
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
-export interface User {
+export interface UserInfo {
   _id: string;
   username: string;
+  email: string;
   role: string;
-  email?: string;
-  phoneNumber?: string | null;
-  isActive?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-  [key: string]: any;
 }
 
-export interface GetUsersParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  role?: string;
-  [key: string]: any;
-}
-
-export interface UserStats {
-  totalUsers: number;
-  usersByRole: Record<string, number>;
-  [key: string]: any;
+export interface AuditLog {
+  _id: string;
+  userId: string | UserInfo;
+  action: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Backend wrapped response format
@@ -36,43 +25,45 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+// Query parameters for listing audit logs
+export interface AuditLogQueryParams {
+  userId?: string;
+  action?: string;
+  sort?: string;
+  fields?: string;
+  limit?: number;
+  page?: number;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // API Functions
 // ─────────────────────────────────────────────────────────────────────────────
-export const usersAPI = {
+export const auditLogsAPI = {
   /**
-   * Fetch all users with optional filtering and pagination
+   * Get all audit logs with optional filtering
+   * Admin only
    */
-  getAll: (params?: GetUsersParams) =>
-    apiClient.get<ApiResponse<User[]>>("/users", { params }),
+  getAll: (params?: AuditLogQueryParams) =>
+    apiClient.get<ApiResponse<AuditLog[]>>("/audit-logs", { params }),
 
   /**
-   * Fetch single user by ID
+   * Get single audit log by ID
+   * Admin only
    */
   getById: (id: string) =>
-    apiClient.get<ApiResponse<User>>(`/users/${id}`),
+    apiClient.get<ApiResponse<AuditLog>>(`/audit-logs/${id}`),
 
   /**
-   * Create new user
-   */
-  create: (data: Partial<User>) =>
-    apiClient.post<ApiResponse<User>>("/users", data),
-
-  /**
-   * Update user
-   */
-  update: (id: string, data: Partial<User>) =>
-    apiClient.put<ApiResponse<User>>(`/users/${id}`, data),
-
-  /**
-   * Delete user
+   * Delete single audit log by ID
+   * Admin only
    */
   delete: (id: string) =>
-    apiClient.delete<ApiResponse<null>>(`/users/${id}`),
+    apiClient.delete<ApiResponse<null>>(`/audit-logs/${id}`),
 
   /**
-   * Get user statistics
+   * Cleanup all audit logs
+   * Admin only - use with caution
    */
-  getStats: () =>
-    apiClient.get<ApiResponse<UserStats>>("/users/stats/overview"),
+  cleanup: () =>
+    apiClient.delete<ApiResponse<{ deletedCount: number }>>("/audit-logs/cleanup"),
 };

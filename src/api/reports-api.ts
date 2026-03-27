@@ -67,4 +67,12 @@ export const reportsAPI = {
    */
   updateStatus: (id: string, data: { status: string; message?: string }) =>
     apiClient.put<ApiResponse<Report>>(`/reports/${id}`, data),
+
+  /**
+   * Download report files (returns blob)
+   */
+  download: (id: string) =>
+    apiClient.get(`/reports/${id}/download`, {
+      responseType: "blob",
+    }),
 };

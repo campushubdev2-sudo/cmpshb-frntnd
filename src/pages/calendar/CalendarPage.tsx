@@ -1,151 +1,34 @@
 import { useState, useEffect, useMemo } from "react";
 import { format } from "date-fns";
-import { Download, CalendarDays, CalendarCheck2, Clock, Calendar } from "lucide-react";
+import { CalendarDays, CalendarCheck2, Clock, Calendar } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CalendarSection } from "@/components/ui/event-calendar";
 import { useAuthentication } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import type { CampusEventDTO } from "@/services/school-event-service";
+import { ROLES } from "@/config/constants/roles";
+import type { CalendarEvent } from "@ilamy/calendar";
+import {
+  eventService,
+  normalizeToCalendarEvent,
+  normalizeToSchoolEventInput,
+} from "@/services/school-event-service";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types
+// Types - Normalized for ilamy Calendar
 // ─────────────────────────────────────────────────────────────────────────────
-interface SchoolEvent extends CampusEventDTO {
+interface CalendarSchoolEvent extends CalendarEvent {
   _id: string;
   title: string;
-  start: string | Date;
-  end: string | Date;
+  start: Date | string;
+  end: Date | string;
   objective?: string;
   venue?: string;
   organizedBy?: string;
   allDay: boolean;
   status?: "upcoming" | "ongoing" | "completed" | "cancelled";
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data - Pre-populated Events
-// ─────────────────────────────────────────────────────────────────────────────
-const INITIAL_EVENTS: SchoolEvent[] = [
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e001",
-    title: "Welcome Orientation 2025",
-    objective: "Introduce new students to campus life",
-    start: "2025-03-01T09:00:00.000Z",
-    end: "2025-03-01T17:00:00.000Z",
-    allDay: false,
-    venue: "Main Auditorium",
-    organizedBy: "admin",
-    status: "completed",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e002",
-    title: "CS Department Career Fair",
-    objective: "Connect students with tech companies",
-    start: "2025-03-15T09:00:00.000Z",
-    end: "2025-03-15T17:00:00.000Z",
-    allDay: false,
-    venue: "Engineering Building Lobby",
-    organizedBy: "department",
-    status: "ongoing",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e003",
-    title: "Student Leadership Summit",
-    objective: "Develop leadership skills",
-    start: "2025-03-28T08:00:00.000Z",
-    end: "2025-03-28T16:00:00.000Z",
-    allDay: false,
-    venue: "Conference Center Hall A",
-    organizedBy: "admin",
-    status: "upcoming",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e004",
-    title: "Intramural Sports Festival",
-    objective: "Promote physical fitness",
-    start: "2025-04-05T00:00:00.000Z",
-    end: "2025-04-06T23:59:59.000Z",
-    allDay: true,
-    venue: "University Sports Complex",
-    organizedBy: "admin",
-    status: "upcoming",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e005",
-    title: "Research Symposium",
-    objective: "Showcase research projects",
-    start: "2025-04-20T10:00:00.000Z",
-    end: "2025-04-20T18:00:00.000Z",
-    allDay: false,
-    venue: "Science Building Atrium",
-    organizedBy: "department",
-    status: "upcoming",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// In-Memory Store
-// ─────────────────────────────────────────────────────────────────────────────
-let eventsStore: SchoolEvent[] = [...INITIAL_EVENTS];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock API Functions
-// ─────────────────────────────────────────────────────────────────────────────
-const mockAPI = {
-  getEvents(): Promise<{ data: SchoolEvent[] }> {
-    return Promise.resolve({ data: [...eventsStore] });
-  },
-
-  createEvent(
-    data: Omit<SchoolEvent, "_id" | "createdAt" | "updatedAt">,
-  ): Promise<{ data: SchoolEvent }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const now = new Date().toISOString();
-        const newEvent: SchoolEvent = {
-          _id: `67d8f2a1c9e8b3a4d5e6e${Math.floor(Math.random() * 10000)
-            .toString()
-            .padStart(3, "0")}`,
-          ...data,
-          start: data.start,
-          end: data.end,
-        } as SchoolEvent;
-        eventsStore.push(newEvent);
-        resolve({ data: newEvent });
-      }, 300);
-    });
-  },
-
-  updateEvent(id: string, data: Partial<SchoolEvent>): Promise<{ data: SchoolEvent }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const index = eventsStore.findIndex((e) => e._id === id);
-        if (index === -1) {
-          resolve({ data: {} as SchoolEvent });
-          return;
-        }
-        const updated = { ...eventsStore[index], ...data };
-        eventsStore[index] = updated;
-        resolve({ data: updated });
-      }, 300);
-    });
-  },
-
-  deleteEvent(id: string): Promise<{ data: null }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const index = eventsStore.findIndex((e) => e._id === id);
-        if (index !== -1) {
-          eventsStore.splice(index, 1);
-        }
-        resolve({ data: null });
-      }, 200);
-    });
-  },
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stats Configuration
@@ -190,27 +73,60 @@ const calculateEventStatus = (
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: Normalize backend event to calendar format
+// ─────────────────────────────────────────────────────────────────────────────
+const normalizeEvent = (event: BackendSchoolEvent): CalendarSchoolEvent => {
+  const normalized = normalizeToCalendarEvent(event);
+  return {
+    ...normalized,
+    start: event.startDate,
+    end: event.endDate,
+  } as CalendarSchoolEvent;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
   const { authenticatedUser } = useAuthentication();
-  const canManage = authenticatedUser?.role === "admin" || authenticatedUser?.role === "adviser";
+  const canManage = authenticatedUser?.role === ROLES.ADMIN;
 
-  const [events, setEvents] = useState<SchoolEvent[]>([]);
+  const [events, setEvents] = useState<CalendarSchoolEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Events from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchData = async () => {
     try {
       setLoading(true);
-      setError(null);
-      const response = await mockAPI.getEvents();
-      setEvents(response.data || []);
+
+      const response = await eventService.getEvents({ limit: 100 });
+      const apiResponse = response;
+
+      if (apiResponse.success) {
+        let eventsData: BackendSchoolEvent[] = [];
+
+        // Handle different response structures
+        if (Array.isArray(apiResponse.data)) {
+          eventsData = apiResponse.data;
+        } else if (apiResponse.data && Array.isArray(apiResponse.data.items)) {
+          eventsData = apiResponse.data.items;
+        } else if (apiResponse.data?.items) {
+          eventsData = apiResponse.data.items;
+        }
+
+        // Normalize events for calendar
+        const normalizedEvents = eventsData.map(normalizeEvent);
+        setEvents(normalizedEvents);
+      } else {
+        toast.error(apiResponse.message || "Failed to fetch events");
+        setEvents([]);
+      }
     } catch (error: unknown) {
-      console.error(error);
-      setError(error);
-      toast.error("Failed to fetch calendar data");
+      console.error("Error fetching calendar events:", error);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -220,7 +136,9 @@ export default function CalendarPage() {
     fetchData();
   }, []);
 
+  // ───────────────────────────────────────────────────────────────────────────
   // Calculate stats from events data
+  // ───────────────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -249,58 +167,99 @@ export default function CalendarPage() {
     };
   }, [events]);
 
+  // ───────────────────────────────────────────────────────────────────────────
   // ilamy calendar event handlers
+  // ───────────────────────────────────────────────────────────────────────────
   const handleEventSave = async (eventData: any) => {
+    console.log("📅 ilamy onEventSave called with:", eventData);
+
+    if (!canManage) {
+      toast.error("Only admins can manage calendar events");
+      return;
+    }
+
     try {
       setSubmitting(true);
-      if (eventData._id) {
-        // Update existing event
-        const status = calculateEventStatus(eventData.start, eventData.end);
-        await mockAPI.updateEvent(eventData._id, {
-          title: eventData.title,
-          start: eventData.start,
-          end: eventData.end,
-          allDay: eventData.allDay,
-          venue: eventData.venue,
-          objective: eventData.objective,
-          status,
-        });
-        toast.success("Event updated successfully");
+
+      // Calculate event status based on dates
+      const startDate =
+        eventData.start instanceof Date
+          ? eventData.start.toISOString().split("T")[0]
+          : eventData.start;
+      const endDate =
+        eventData.end instanceof Date ? eventData.end.toISOString().split("T")[0] : eventData.end;
+      const status = calculateEventStatus(startDate, endDate);
+
+      // Normalize data for backend API using the service utility
+      const payload = normalizeToSchoolEventInput(
+        { ...eventData, status },
+        undefined, // existingEvent not needed for this normalization
+      );
+
+      if (eventData._id || eventData.id) {
+        // Update existing event - PUT (partial update)
+        const eventId = eventData._id || eventData.id;
+        console.log("✏️ PUT /school-events/:id with payload:", payload);
+
+        const response = await eventService.updateEvent(eventId, payload);
+
+        if (response.success) {
+          toast.success(response.message || "Event updated successfully");
+          fetchData();
+        } else {
+          toast.error(response.message || "Failed to update event");
+        }
       } else {
-        // Create new event
-        const status = calculateEventStatus(eventData.start, eventData.end);
-        await mockAPI.createEvent({
-          title: eventData.title,
-          start: eventData.start,
-          end: eventData.end,
-          allDay: eventData.allDay,
-          venue: eventData.venue || "",
-          objective: eventData.objective || "",
-          organizedBy: "admin",
-          status,
-        });
-        toast.success("Event created successfully");
+        // Create new event - POST
+        console.log("➕ POST /school-events with payload:", payload);
+
+        const response = await eventService.createEvent(payload);
+
+        if (response.success) {
+          toast.success(response.message || "Event created successfully");
+          fetchData();
+        } else {
+          toast.error(response.message || "Failed to create event");
+        }
       }
-      fetchData();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to save event");
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || "Failed to save event";
+      toast.error(message);
+      console.error("Calendar event save error:", error);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleEventDelete = async (eventId: string) => {
+    console.log("🗑️ ilamy onEventDelete called with eventId:", eventId);
+
+    if (!canManage) {
+      toast.error("Only admins can delete calendar events");
+      return;
+    }
+
     try {
-      await mockAPI.deleteEvent(eventId);
-      toast.success("Event deleted successfully");
-      fetchData();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete event");
+      console.log("🗑️ Deleting event:", eventId);
+      const response = await eventService.deleteEvent(eventId);
+
+      if (response.success) {
+        toast.success(response.message || "Event deleted successfully");
+        fetchData();
+      } else {
+        toast.error(response.message || "Failed to delete event");
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || "Failed to delete event";
+      toast.error(message);
+      console.error("Calendar event delete error:", error);
+      console.error("Error response:", error.response?.data);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading State
+  // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex h-96 flex-col items-center justify-center gap-3">
@@ -310,23 +269,9 @@ export default function CalendarPage() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex h-96 flex-col items-center justify-center gap-4">
-        <p className="text-destructive">Failed to load calendar data</p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchData}>
-            Retry
-          </Button>
-          <Button variant="outline" onClick={() => console.error(error)}>
-            <Download className="mr-2 h-4 w-4" />
-            Download Error Log
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <>
       <title>CampusHub | Calendar</title>
@@ -366,7 +311,7 @@ export default function CalendarPage() {
 
         {/* Calendar Section - Using ilamy Calendar */}
         <CalendarSection
-          isAdmin={canManage}
+          isAdmin={false}
           events={events}
           onEventSave={handleEventSave}
           onEventDelete={handleEventDelete}

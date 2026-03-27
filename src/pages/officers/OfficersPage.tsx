@@ -14,146 +14,23 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import Modal from "@/components/ui/Modal";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
+import { officersAPI, type Officer } from "@/api/officers-api";
+import { orgsAPI, type Org } from "@/api/orgs-api";
+import { usersAPI, type User } from "@/api/users-api";
+import { ROLES } from "@/config/constants/roles";
+import apiClient from "@/api/client";
 
-const ALL_OFFICER_POSITIONS = [
-  // BSBA
-  "President",
-  "Executive Vice President",
-  "General Secretary",
-  "Secretary Board",
-  "Vp For Academics",
-  "Member Of Vp For Academics",
-  "Vp For Finance",
-  "Member Of Vp For Finance",
-  "Vp For Audit",
-  "Member Of Vp For Audit",
-  "Vp For Membership",
-  "Member Of Vp For Membership",
-  "Vp For Communication",
-  "Member Of Vp For Communication",
-  "Vp For Logistics",
-  "Member Of Vp For Logistics",
-  "Vp For Graphics And Publications",
-  "Member Of Vp For Graphics And Publications",
-  "Vp For Non-Academics (Sociocultural Committee)",
-  "Member Of Vp For Non-Academics (Sociocultural Committee)",
-  "Vp For Non-Academics (Sports Committee)",
-  "Member Of Vp For Non-Academics (Sports Committee)",
-  "Representative 1st year FM-A",
-  "Representative 1st year FM-B",
-  "Representative 1st year MM-A",
-  "Representative 1st year MM-B",
-  "Representative 1st year HRDM",
-  "Representative 2nd year FM-A",
-  "Representative 2nd year FM-B",
-  "Representative 2nd year MM",
-  "Representative 3rd year FM",
-  "Representative 3rd year MM",
-  "Representative 3rd year HRDM",
-  "Representative 4th year FM",
-  "Representative 4th year MM",
-  "Representative 4th year HRDM",
-  // BSHM
-  "Vice President",
-  "Secretary",
-  "Assistant Secretary",
-  "Treasurer",
-  "Auditor",
-  "PRO",
-  "Business Manager",
-  "Documentation",
-  "1st Year Blk 2 Representative",
-  "1st Year Blk 1 Representative",
-  "2nd Year Blk 2 Representative",
-  "2nd Year Blk 1 Representative",
-  "3rd Year Representative",
-  "4th Year Representative",
-  // JUNIOR_PHILIPPINE_BSA
-  "Vice-President for Administration",
-  "Vice-President for Academics",
-  "Vice-President for Culture and Arts",
-  "Vice-President for Games and Sports",
-  "Vice-President for Finance",
-  "Vice-President for Audit",
-  "Vice-President for Communications",
-  "Vice-President for Membership",
-  "Vice-President for Documentation",
-  "Representatives - 1st Year",
-  "Representatives - 2nd Year",
-  "Representatives - 3rd Year",
-  "Representatives - 4th Year",
-  // SUPREME_STUDENT_COUNCIL
-  "Board Secretary",
-  "SSC Documentary Officer",
-  "SSC Senator",
-  "SSC Representative",
-  // BSCRIM
-  "Governor",
-  "Vice Governor Internal",
-  "Vice Governor External",
-  "Minutes Secretary",
-  "File Secretary",
-  "Peace Officer",
-  "Press Relation Officer",
-  "Academic Coordinator",
-  "Sports Coordinator",
-  "Business Manager Internal",
-  "Business Manager External",
-  "1st Year Representative",
-  "2nd Year Representative",
-  "3rd Year Representative",
-  "4th Year Representative",
-  // MODERN_YOUNG_EDUCATORS
-  "Vice President for Academics",
-  "Vice President for Communication",
-  "Vice President for Culture and Arts",
-  "Vice President for Sports and Games",
-  "Vice President for Documentation",
-  "Vice President for Finance",
-  "First-Year Representative",
-  "Second-Year Representative",
-  "Third-Year Representative",
-  "Fourth-Year Representative",
-  "Logistics Committee",
-  "Graphic Artist",
-  // COLLEGE_OF_TEACHER
-  "First Year Assistant Secretary",
-  "Second Year Assistant Secretary",
-  "Third Year-Assistant Secretary",
-  "BEEd 4th Year- Assistant Secretary",
-  "BSEd 4th Year-Assistant Secretary",
-  "MYES, Advisor",
-  "Dean, College of Teacher Education",
-  "OSAS-Director",
-  "Vice President for Academic Affairs",
-  "EVP/VPA/Principal, Basic Education",
-  "President and Chairman of the Board",
-  // ELEM
-  "P.I.O",
-  "Grade 1 Rep.",
-  "Grade 2 Rep.",
-  "Grade 3 Rep.",
-  "Grade 4 Rep.",
-  "Grade 5 Rep.",
-  "Grade 6 Rep.",
-  // SSLG
-  "P.I.O JHS - Science Class",
-  "P.I.O JHS - Regular Class",
-  "P.I.O SHS",
-  "Peace Officer JHS",
-  "Peace Officer SHS",
-  "Business Managers",
-  // YWAV
-  "Public Relation Officer (PRO)",
-  // JPCS
-  "Asst. Secretary",
-  "Asst. Treasurer",
-  "PIO (Academic)",
-  "PIO (Non-Academic)",
-];
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+interface OfficerPosition {
+  positionValue: string;
+  positionLabel: string;
+}
 
-const positionOptions = [...new Set(ALL_OFFICER_POSITIONS)].map((p) => ({ value: p, label: p }));
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Validation Schemas
+// ─────────────────────────────────────────────────────────────────────────────
 const createOfficerSchema = z.object({
   userId: z.string().min(1, "User is required"),
   orgId: z.string().min(1, "Organization is required"),
@@ -168,250 +45,79 @@ const editOfficerSchema = z.object({
   endTerm: z.string().min(1, "Term end is required"),
 });
 
-// --- MOCK DATA ---
-const MOCK_USERS = [
-  {
-    _id: "user1",
-    username: "john_doe",
-    role: "officer",
-    email: "john@example.com",
-    phoneNumber: "1234567890",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "user2",
-    username: "jane_smith",
-    role: "officer",
-    email: "jane@example.com",
-    phoneNumber: "0987654321",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "user3",
-    username: "alice_wonder",
-    role: "adviser",
-    email: "alice@example.com",
-    phoneNumber: "1122334455",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "user4",
-    username: "bob_builder",
-    role: "student",
-    email: "bob@example.com",
-    phoneNumber: "5566778899",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+type CreateOfficerFormData = z.infer<typeof createOfficerSchema>;
+type EditOfficerFormData = z.infer<typeof editOfficerSchema>;
 
-const MOCK_ORGS = [
-  {
-    _id: "org1",
-    orgName: "Computer Science Society",
-    description: "For CS students",
-    adviser: "user3",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "org2",
-    orgName: "Business Club",
-    description: "For business students",
-    adviser: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-let MOCK_OFFICERS = [
-  {
-    _id: "off1",
-    userId: { ...MOCK_USERS[0], password: undefined },
-    orgId: { ...MOCK_ORGS[0] },
-    position: "President",
-    startTerm: "2024-01-01",
-    endTerm: "2024-12-31",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "off2",
-    userId: { ...MOCK_USERS[1], password: undefined },
-    orgId: { ...MOCK_ORGS[1] },
-    position: "Secretary",
-    startTerm: "2024-02-01",
-    endTerm: "2024-11-30",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-// Helper to simulate async API calls
-const delay = (ms = 500) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Mock API functions
-const mockOfficersAPI = {
-  getAll: async () => {
-    await delay();
-    return { data: MOCK_OFFICERS };
-  },
-  create: async (data: any) => {
-    await delay();
-    const { userId, orgId, position, startTerm, endTerm } = data;
-    const foundUser = MOCK_USERS.find((u) => u._id === userId);
-    const foundOrg = MOCK_ORGS.find((o) => o._id === orgId);
-    if (!foundUser || !foundOrg) {
-      return {
-        success: false,
-        status: "fail",
-        message: "User or Organization not found",
-      };
-    }
-    const newOfficer = {
-      _id: `off${Date.now()}`,
-      userId: { ...foundUser, password: undefined },
-      orgId: { ...foundOrg },
-      position,
-      startTerm,
-      endTerm,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    MOCK_OFFICERS.push(newOfficer);
-    return {
-      success: true,
-      message: "Officer created successfully",
-      data: newOfficer,
-    };
-  },
-  update: async (id: string, data: any) => {
-    await delay();
-    const index = MOCK_OFFICERS.findIndex((o) => o._id === id);
-    if (index === -1) {
-      return {
-        success: false,
-        status: "fail",
-        message: "Officer not found",
-      };
-    }
-    const existing = MOCK_OFFICERS[index];
-    // Simulate business rules
-    if (data.startTerm && new Date(data.startTerm) > new Date(existing.startTerm)) {
-      return {
-        success: false,
-        status: "fail",
-        message: "Cannot set start term after it has already begun",
-      };
-    }
-    if (data.endTerm && new Date(data.endTerm) < new Date(existing.endTerm)) {
-      return {
-        success: false,
-        status: "fail",
-        message: "Cannot shorten end term past the existing date",
-      };
-    }
-    if (data.startTerm && data.endTerm && new Date(data.startTerm) >= new Date(data.endTerm)) {
-      return {
-        success: false,
-        status: "fail",
-        message: "End term must be after start term",
-      };
-    }
-
-    const updatedOfficer = {
-      ...existing,
-      position: data.position ?? existing.position,
-      startTerm: data.startTerm ?? existing.startTerm,
-      endTerm: data.endTerm ?? existing.endTerm,
-      updatedAt: new Date().toISOString(),
-    };
-    MOCK_OFFICERS[index] = updatedOfficer;
-    return {
-      success: true,
-      message: "Officer updated successfully",
-      data: updatedOfficer,
-    };
-  },
-  delete: async (id: string) => {
-    await delay();
-    const index = MOCK_OFFICERS.findIndex((o) => o._id === id);
-    if (index === -1) {
-      return {
-        success: false,
-        status: "fail",
-        message: "Officer not found",
-      };
-    }
-    const deletedOfficer = MOCK_OFFICERS[index];
-    MOCK_OFFICERS = MOCK_OFFICERS.filter((o) => o._id !== id);
-    return {
-      success: true,
-      message: "Officer deleted successfully",
-      data: deletedOfficer,
-    };
-  },
-};
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
 const OfficersPage = () => {
   const { authenticatedUser } = useAuthentication();
-  const [officers, setOfficers] = useState([]);
-  const [allOrgs, setAllOrgs] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [officers, setOfficers] = useState<Officer[]>([]);
+  const [allOrgs, setAllOrgs] = useState<Org[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [positionOptions, setPositionOptions] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingOfficer, setEditingOfficer] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [editingOfficer, setEditingOfficer] = useState<Officer | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Officer | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const isEditing = !!editingOfficer;
-  const isAdmin = authenticatedUser?.role === "admin";
-  const isAdviser = authenticatedUser?.role === "adviser";
-  const isOfficer = authenticatedUser?.role === "officer";
+  const isAdmin = authenticatedUser?.role === ROLES.ADMIN;
+  const isAdviser = authenticatedUser?.role === ROLES.ADVISER;
+  const isOfficer = authenticatedUser?.role === ROLES.OFFICER;
   const canManage = isAdmin || isAdviser;
 
-  // Derive the user's org IDs for filtering
+  // ───────────────────────────────────────────────────────────────────────────
+  // RBAC: Derive user's org IDs for filtering
+  // ───────────────────────────────────────────────────────────────────────────
   const userOrgIds = useMemo(() => {
-    if (isAdmin) return null; // admin sees all
+    if (isAdmin) return null;
+
     if (isAdviser) {
-      // Adviser's orgs: orgs where adviser matches the user
       return allOrgs
         .filter((o) => {
-          const adviserId = o.adviser?._id || o.adviser;
+          const adviserId = typeof o.adviser === "string" ? o.adviser : o.adviser?._id;
           return adviserId === authenticatedUser?._id;
         })
         .map((o) => o._id?.toString());
     }
+
     if (isOfficer) {
-      // Officer's orgs: derive from officer records where userId matches
       const myOrgIds = officers
         .filter((off) => {
-          const offUserId = off.userId?._id || off.userId;
+          const offUserId = typeof off.userId === "string" ? off.userId : off.userId?._id;
           return offUserId === authenticatedUser?._id;
         })
         .map((off) => {
-          const orgId = off.orgId?._id || off.orgId;
+          const orgId = typeof off.orgId === "string" ? off.orgId : off.orgId?._id;
           return orgId?.toString();
         });
       return [...new Set(myOrgIds)];
     }
+
     return [];
   }, [isAdmin, isAdviser, isOfficer, allOrgs, officers, authenticatedUser]);
 
-  // Filtered officers based on role
+  // ───────────────────────────────────────────────────────────────────────────
+  // RBAC: Filter officers based on role
+  // ───────────────────────────────────────────────────────────────────────────
   const filteredOfficers = useMemo(() => {
     if (isAdmin || !userOrgIds) return officers;
     return officers.filter((off) => {
-      const orgId = (off.orgId?._id || off.orgId)?.toString();
+      const orgId = (typeof off.orgId === "string" ? off.orgId : off.orgId?._id)?.toString();
       return userOrgIds.includes(orgId);
     });
   }, [officers, userOrgIds, isAdmin]);
 
-  // Filtered org options for the dropdown (adviser only sees their orgs)
+  // ───────────────────────────────────────────────────────────────────────────
+  // RBAC: Filter org options for dropdown
+  // ───────────────────────────────────────────────────────────────────────────
   const orgOptions = useMemo(() => {
     const mapped = allOrgs.map((o) => ({
       value: o._id?.toString(),
@@ -420,6 +126,13 @@ const OfficersPage = () => {
     if (isAdmin || !userOrgIds) return mapped;
     return mapped.filter((o) => userOrgIds.includes(o.value));
   }, [allOrgs, userOrgIds, isAdmin]);
+
+  const userOptions = useMemo(() => {
+    return users.map((u) => ({
+      value: u._id?.toString(),
+      label: u.username,
+    }));
+  }, [users]);
 
   const {
     register,
@@ -430,31 +143,82 @@ const OfficersPage = () => {
     resolver: zodResolver(isEditing ? editOfficerSchema : createOfficerSchema),
   });
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Officers from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchOfficers = async () => {
     try {
       setLoading(true);
-      const response = await mockOfficersAPI.getAll();
-      setOfficers(response.data);
-    } catch (error) {
+      const response = await officersAPI.getAll({ limit: 100 });
+      const apiResponse = response.data;
+
+      let officersData: Officer[] = [];
+
+      if (apiResponse.success) {
+        if (Array.isArray(apiResponse.data)) {
+          officersData = apiResponse.data;
+        } else if (apiResponse.data && Array.isArray(apiResponse.data.items)) {
+          officersData = apiResponse.data.items;
+        } else if (apiResponse.data?.items) {
+          officersData = apiResponse.data.items;
+        }
+
+        setOfficers(officersData);
+      } else {
+        toast.error(apiResponse.message || "Failed to fetch officers");
+      }
+    } catch (error: any) {
+      console.error("Error fetching officers:", error);
       toast.error("Failed to fetch officers");
     } finally {
       setLoading(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Dropdown Data (Users, Organizations & Positions)
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchDropdownData = async () => {
     try {
-      // Simulate fetching users and orgs
-      await delay();
-      setUsers(
-        MOCK_USERS.map((u) => ({
-          value: u._id?.toString(),
-          label: u.username,
+      const [usersRes, orgsRes, positionsRes] = await Promise.all([
+        usersAPI.getAll({ limit: 100 }),
+        orgsAPI.getAll({ limit: 100 }),
+        apiClient.get("/officers/meta/positions"),
+      ]);
+
+      const usersApiResponse = usersRes.data;
+      const orgsApiResponse = orgsRes.data;
+      const positionsApiResponse = positionsRes.data;
+
+      // Handle users response (direct array in data)
+      let usersData: User[] = [];
+      if (usersApiResponse.success && Array.isArray(usersApiResponse.data)) {
+        usersData = usersApiResponse.data;
+      }
+
+      // Handle orgs response (direct array in data)
+      let orgsData: Org[] = [];
+      if (orgsApiResponse.success && Array.isArray(orgsApiResponse.data)) {
+        orgsData = orgsApiResponse.data;
+      }
+
+      // Handle positions response (direct array in data)
+      let positionsData: OfficerPosition[] = [];
+      if (positionsApiResponse.success && Array.isArray(positionsApiResponse.data)) {
+        positionsData = positionsApiResponse.data;
+      }
+
+      setUsers(usersData);
+      setAllOrgs(orgsData);
+      setPositionOptions(
+        positionsData.map((p) => ({
+          value: p.positionValue,
+          label: p.positionLabel,
         })),
       );
-      setAllOrgs(MOCK_ORGS);
     } catch (error) {
       console.error("Failed to fetch dropdown data:", error);
+      toast.error("Failed to load users, organizations, or positions");
     }
   };
 
@@ -463,7 +227,14 @@ const OfficersPage = () => {
     fetchDropdownData();
   }, []);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Modal Handlers
+  // ───────────────────────────────────────────────────────────────────────────
   const openCreateModal = () => {
+    if (!canManage) {
+      toast.error("You don't have permission to add officers");
+      return;
+    }
     setEditingOfficer(null);
     reset({
       userId: "",
@@ -475,11 +246,23 @@ const OfficersPage = () => {
     setModalOpen(true);
   };
 
-  const openEditModal = (officer) => {
+  const openEditModal = (officer: Officer) => {
+    if (!canManage) {
+      toast.error("You don't have permission to edit officers");
+      return;
+    }
     setEditingOfficer(officer);
     reset({
-      userId: officer.userId?._id || officer.userId || "",
-      orgId: officer.orgId?._id || officer.orgId || "",
+      userId: !officer.userId
+        ? ""
+        : typeof officer.userId === "string"
+          ? officer.userId
+          : officer.userId?._id || "",
+      orgId: !officer.orgId
+        ? ""
+        : typeof officer.orgId === "string"
+          ? officer.orgId
+          : officer.orgId?._id || "",
       position: officer.position || "",
       startTerm: officer.startTerm ? officer.startTerm.substring(0, 10) : "",
       endTerm: officer.endTerm ? officer.endTerm.substring(0, 10) : "",
@@ -493,32 +276,53 @@ const OfficersPage = () => {
     reset();
   };
 
-  const onSubmit = async (data) => {
+  // ───────────────────────────────────────────────────────────────────────────
+  // CRUD Operations
+  // ───────────────────────────────────────────────────────────────────────────
+  const onSubmit = async (data: CreateOfficerFormData | EditOfficerFormData) => {
+    if (!canManage) {
+      toast.error("You don't have permission to manage officers");
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      if (isEditing) {
-        const { position, startTerm, endTerm } = data;
-        const response = await mockOfficersAPI.update(editingOfficer._id, {
-          position,
-          startTerm,
-          endTerm,
+      if (isEditing && editingOfficer) {
+        const editData = data as EditOfficerFormData;
+        const response = await officersAPI.update(editingOfficer._id, {
+          position: editData.position,
+          startTerm: editData.startTerm,
+          endTerm: editData.endTerm,
         });
-        if (!response.success) {
-          throw new Error(response.message);
+
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
+          toast.success(apiResponse.message || "Officer updated successfully");
+          fetchOfficers();
+          closeModal();
+        } else {
+          toast.error(apiResponse.message || "Failed to update officer");
         }
-        toast.success(response.message);
       } else {
-        const response = await mockOfficersAPI.create(data);
-        if (!response.success) {
-          throw new Error(response.message);
+        const createData = data as CreateOfficerFormData;
+        const response = await officersAPI.create(createData);
+
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
+          toast.success(apiResponse.message || "Officer created successfully");
+          fetchOfficers();
+          closeModal();
+        } else {
+          toast.error(apiResponse.message || "Failed to create officer");
         }
-        toast.success(response.message);
       }
-      closeModal();
-      fetchOfficers();
-    } catch (error) {
+    } catch (error: any) {
       const message =
-        error.message || (isEditing ? "Failed to update officer" : "Failed to create officer");
+        error?.response?.data?.message ||
+        error?.message ||
+        (isEditing ? "Failed to update officer" : "Failed to create officer");
       toast.error(message);
       console.error("Officer submit error:", error);
     } finally {
@@ -527,32 +331,56 @@ const OfficersPage = () => {
   };
 
   const handleDelete = async () => {
-    try {
-      setDeleting(true);
-      const response = await mockOfficersAPI.delete(deleteTarget._id);
-      if (!response.success) {
-        throw new Error(response.message);
-      }
-      toast.success(response.message);
+    if (!canManage || !deleteTarget) {
+      toast.error("You don't have permission to delete officers");
       setDeleteTarget(null);
-      fetchOfficers();
-    } catch (error) {
-      toast.error(error.message || "Failed to delete officer");
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await officersAPI.delete(deleteTarget._id);
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
+        toast.success(apiResponse.message || "Officer deleted successfully");
+        fetchOfficers();
+      } else {
+        toast.error(apiResponse.message || "Failed to delete officer");
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || "Failed to delete officer";
+      toast.error(message);
+      console.error("Delete officer error:", error);
     } finally {
       setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Table Columns
+  // ───────────────────────────────────────────────────────────────────────────
   const columns = [
     {
       header: "User",
       accessorKey: "userId",
-      cell: (row) => row.userId?.username || `User #${row.userId}`,
+      cell: (row: Officer) => {
+        // Handle null/undefined userId
+        if (!row.userId) return "N/A";
+        if (typeof row.userId === "string") return `User #${row.userId}`;
+        return row.userId?.username || row.userId?._id || "N/A";
+      },
     },
     {
       header: "Organization",
       accessorKey: "orgId",
-      cell: (row) => row.orgId?.orgName || `Org #${row.orgId}`,
+      cell: (row: Officer) => {
+        // Handle null/undefined orgId
+        if (!row.orgId) return "N/A";
+        if (typeof row.orgId === "string") return `Org #${row.orgId}`;
+        return row.orgId?.orgName || row.orgId?._id || "N/A";
+      },
     },
     {
       header: "Position",
@@ -561,19 +389,20 @@ const OfficersPage = () => {
     {
       header: "Term Start",
       accessorKey: "startTerm",
-      cell: (row) => (row.startTerm ? format(new Date(row.startTerm), "MMM dd, yyyy") : "—"),
+      cell: (row: Officer) =>
+        row.startTerm ? format(new Date(row.startTerm), "MMM dd, yyyy") : "—",
     },
     {
       header: "Term End",
       accessorKey: "endTerm",
-      cell: (row) => (row.endTerm ? format(new Date(row.endTerm), "MMM dd, yyyy") : "—"),
+      cell: (row: Officer) => (row.endTerm ? format(new Date(row.endTerm), "MMM dd, yyyy") : "—"),
     },
     ...(canManage
       ? [
           {
             header: "Actions",
             accessorKey: "actions",
-            cell: (row) => (
+            cell: (row: Officer) => (
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => openEditModal(row)}>
                   Edit
@@ -588,6 +417,9 @@ const OfficersPage = () => {
       : []),
   ];
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading State
+  // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -596,6 +428,9 @@ const OfficersPage = () => {
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <>
       <title>CampusHub | Officer Management</title>
@@ -623,6 +458,7 @@ const OfficersPage = () => {
           searchPlaceholder="Search officers..."
         />
 
+        {/* Create/Edit Officer Modal */}
         {canManage && (
           <Modal
             isOpen={modalOpen}
@@ -632,7 +468,7 @@ const OfficersPage = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <Select
                 label="User"
-                options={users}
+                options={userOptions}
                 placeholder="Select a user"
                 {...register("userId")}
                 error={errors.userId?.message}
@@ -679,7 +515,7 @@ const OfficersPage = () => {
           </Modal>
         )}
 
-        {/* Delete Confirmation - only for admin/adviser */}
+        {/* Delete Confirmation Dialog */}
         {canManage && (
           <ConfirmDialog
             isOpen={!!deleteTarget}

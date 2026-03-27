@@ -7,27 +7,30 @@ import { Plus, Eye, Upload, X, Pencil, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Modal from "@/components/ui/Modal";
 import DataTable from "@/components/shared/DataTable";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useAuthentication } from "@/contexts/AuthContext";
 import { Link } from "react-router";
+import { reportsAPI, type Report as BackendReport } from "@/api/reports-api";
+import { orgsAPI, type Org } from "@/api/orgs-api";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types (matching backend response shapes)
+// Types
 // ─────────────────────────────────────────────────────────────────────────────
 type ReportStatus = "pending" | "approved" | "rejected";
 
 interface Report {
   _id: string;
   orgId: { _id: string; orgName: string } | string;
-  submittedBy: { _id: string; username: string; role: string; email: string } | string;
+  submittedBy: { _id: string; username: string; role: string; email?: string } | string;
   reportType: string;
   filePaths: string[];
   status: ReportStatus;
@@ -35,293 +38,6 @@ interface Report {
   createdAt: string;
   updatedAt: string;
 }
-
-interface Org {
-  _id: string;
-  orgName: string;
-  description?: string;
-}
-
-interface SuccessResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
-interface FailResponse {
-  success: false;
-  status: "fail";
-  message: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data - Pre-populated Organizations
-// ─────────────────────────────────────────────────────────────────────────────
-const MOCK_ORGS: Org[] = [
-  {
-    _id: "69c2cf29d1f76e8cb0873e51",
-    orgName: "Executive Vice President",
-    description: "This organization has no description yet.",
-  },
-  {
-    _id: "69c2cf29d1f76e8cb0873e52",
-    orgName: "Computer Science Society",
-    description: "A community for CS students to collaborate and learn together.",
-  },
-  {
-    _id: "69c2cf29d1f76e8cb0873e53",
-    orgName: "Business Club",
-    description: "Networking and professional development for business students.",
-  },
-  {
-    _id: "69c2cf29d1f76e8cb0873e54",
-    orgName: "Engineering Society",
-    description: "Promoting excellence in engineering education and practice.",
-  },
-  {
-    _id: "69c2cf29d1f76e8cb0873e55",
-    orgName: "Math Club",
-    description: "Exploring the beauty of mathematics through problem-solving.",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data - Pre-populated Reports
-// ─────────────────────────────────────────────────────────────────────────────
-const INITIAL_REPORTS: Report[] = [
-  {
-    _id: "69c2cf55d1f76e8cb0873e57",
-    orgId: { _id: "69c2cf29d1f76e8cb0873e51", orgName: "Executive Vice President" },
-    submittedBy: {
-      _id: "699d91d92b2b363622f359d6",
-      username: "admin",
-      role: "admin",
-      email: "admin@example.com",
-    },
-    reportType: "bylaws",
-    filePaths: ["uploads/reports/bylaws/report-1774374741366-736122495.docx"],
-    status: "approved",
-    submittedDate: "2026-03-24T17:52:21.378Z",
-    createdAt: "2026-03-24T17:52:21.379Z",
-    updatedAt: "2026-03-24T17:55:24.879Z",
-  },
-  {
-    _id: "69c2cf55d1f76e8cb0873e58",
-    orgId: { _id: "69c2cf29d1f76e8cb0873e52", orgName: "Computer Science Society" },
-    submittedBy: {
-      _id: "699d91d92b2b363622f359d7",
-      username: "cs_officer",
-      role: "officer",
-      email: "cs@example.com",
-    },
-    reportType: "actionPlan",
-    filePaths: ["uploads/reports/actionplan/report-1774374741366-736122496.pdf"],
-    status: "pending",
-    submittedDate: "2026-03-23T10:00:00.000Z",
-    createdAt: "2026-03-23T10:00:00.001Z",
-    updatedAt: "2026-03-23T10:00:00.001Z",
-  },
-  {
-    _id: "69c2cf55d1f76e8cb0873e59",
-    orgId: { _id: "69c2cf29d1f76e8cb0873e53", orgName: "Business Club" },
-    submittedBy: {
-      _id: "699d91d92b2b363622f359d8",
-      username: "biz_pres",
-      role: "officer",
-      email: "biz@example.com",
-    },
-    reportType: "financial",
-    filePaths: ["uploads/reports/financial/report-1774374741366-736122497.xlsx"],
-    status: "rejected",
-    submittedDate: "2026-03-22T14:30:00.000Z",
-    createdAt: "2026-03-22T14:30:00.001Z",
-    updatedAt: "2026-03-23T09:00:00.000Z",
-  },
-  {
-    _id: "69c2cf55d1f76e8cb0873e60",
-    orgId: { _id: "69c2cf29d1f76e8cb0873e54", orgName: "Engineering Society" },
-    submittedBy: {
-      _id: "699d91d92b2b363622f359d9",
-      username: "eng_chair",
-      role: "officer",
-      email: "eng@example.com",
-    },
-    reportType: "proposal",
-    filePaths: ["uploads/reports/proposal/report-1774374741366-736122498.pdf"],
-    status: "pending",
-    submittedDate: "2026-03-24T08:00:00.000Z",
-    createdAt: "2026-03-24T08:00:00.001Z",
-    updatedAt: "2026-03-24T08:00:00.001Z",
-  },
-  {
-    _id: "69c2cf55d1f76e8cb0873e61",
-    orgId: { _id: "69c2cf29d1f76e8cb0873e55", orgName: "Math Club" },
-    submittedBy: {
-      _id: "699d91d92b2b363622f359da",
-      username: "math_lead",
-      role: "officer",
-      email: "math@example.com",
-    },
-    reportType: "bylaws",
-    filePaths: ["uploads/reports/bylaws/report-1774374741366-736122499.docx"],
-    status: "approved",
-    submittedDate: "2026-03-20T11:00:00.000Z",
-    createdAt: "2026-03-20T11:00:00.001Z",
-    updatedAt: "2026-03-21T10:00:00.000Z",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// In-Memory Stores
-// ─────────────────────────────────────────────────────────────────────────────
-let reportsStore: Report[] = [...INITIAL_REPORTS];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock API Functions
-// ─────────────────────────────────────────────────────────────────────────────
-const mockAPI = {
-  getAll(params?: { status?: string; reportType?: string }): Promise<{ data: Report[] }> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        let filtered = [...reportsStore];
-        if (params?.status) {
-          filtered = filtered.filter((r) => r.status === params.status);
-        }
-        if (params?.reportType) {
-          filtered = filtered.filter((r) => r.reportType === params.reportType);
-        }
-        resolve({ data: filtered });
-      }, 300);
-    });
-  },
-
-  getById(id: string): Promise<SuccessResponse<Report> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const report = reportsStore.find((r) => r._id === id);
-        if (report) {
-          resolve({
-            success: true,
-            message: "Report fetched successfully",
-            data: { ...report },
-          });
-        } else {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Report not found",
-          });
-        }
-      }, 200);
-    });
-  },
-
-  create(formData: FormData): Promise<SuccessResponse<Report> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const orgId = formData.get("orgId") as string;
-        const reportType = formData.get("reportType") as string;
-        const files = formData.getAll("files") as File[];
-
-        // Validate organization exists
-        const org = MOCK_ORGS.find((o) => o._id === orgId);
-        if (!org) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Organization not found",
-          });
-          return;
-        }
-
-        // Simulate file paths
-        const filePaths = files.map(
-          (file, index) =>
-            `uploads/reports/${reportType}/report-${Date.now()}-${index}.${file.name.split(".").pop()}`,
-        );
-
-        const now = new Date().toISOString();
-        const newReport: Report = {
-          _id: `69c2cf55d1f76e8cb0873e${Math.floor(Math.random() * 10000)
-            .toString()
-            .padStart(3, "0")}`,
-          orgId: { _id: orgId, orgName: org.orgName },
-          submittedBy: {
-            _id: "current_user",
-            username: "current_user",
-            role: "officer",
-            email: "user@example.com",
-          },
-          reportType,
-          filePaths,
-          status: "pending",
-          submittedDate: now,
-          createdAt: now,
-          updatedAt: now,
-        };
-        reportsStore.push(newReport);
-        resolve({
-          success: true,
-          message: "Report submitted successfully",
-          data: { ...newReport },
-        });
-      }, 300);
-    });
-  },
-
-  updateStatus(
-    id: string,
-    data: { status: string; message?: string },
-  ): Promise<SuccessResponse<Report> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const index = reportsStore.findIndex((r) => r._id === id);
-        if (index === -1) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Report not found",
-          });
-          return;
-        }
-        const updated = {
-          ...reportsStore[index],
-          status: data.status as ReportStatus,
-          updatedAt: new Date().toISOString(),
-        };
-        reportsStore[index] = updated;
-        resolve({
-          success: true,
-          message: "Report status updated successfully",
-          data: { ...updated },
-        });
-      }, 200);
-    });
-  },
-
-  delete(id: string): Promise<SuccessResponse<Report> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const index = reportsStore.findIndex((r) => r._id === id);
-        if (index === -1) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Report not found",
-          });
-          return;
-        }
-        const deleted = reportsStore[index];
-        reportsStore.splice(index, 1);
-        resolve({
-          success: true,
-          message: "Report deleted successfully",
-          data: { ...deleted },
-        });
-      }, 200);
-    });
-  },
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UI Configuration
@@ -369,6 +85,25 @@ const reportSchema = z.object({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: Normalize backend report to UI format
+// ─────────────────────────────────────────────────────────────────────────────
+const normalizeReport = (report: BackendReport): Report => {
+  return {
+    _id: report._id,
+    orgId: report.orgId || "",
+    submittedBy: report.submittedBy || "",
+    reportType: report.reportType || "",
+    filePaths: Array.isArray(report.filePaths)
+      ? report.filePaths.map((fp) => (typeof fp === "string" ? fp : fp.filename || fp.name || ""))
+      : [],
+    status: report.status,
+    submittedDate: report.createdAt || report.updatedAt || new Date().toISOString(),
+    createdAt: report.createdAt || new Date().toISOString(),
+    updatedAt: report.updatedAt || new Date().toISOString(),
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ReportsPage() {
@@ -403,24 +138,49 @@ export default function ReportsPage() {
     resolver: zodResolver(reportSchema),
   });
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Reports from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchReports = async () => {
     try {
       setLoading(true);
       const params: Record<string, string> = {};
       if (statusFilter) params.status = statusFilter;
       if (typeFilter) params.reportType = typeFilter;
-      const response = await mockAPI.getAll(params);
-      setReports(response.data || []);
+
+      const response = await reportsAPI.getAll(params);
+      const apiResponse = response.data;
+
+      if (apiResponse.success && Array.isArray(apiResponse.data)) {
+        const normalizedReports = apiResponse.data.map(normalizeReport);
+        setReports(normalizedReports);
+      } else {
+        setReports([]);
+      }
     } catch (error: unknown) {
       toast.error("Failed to fetch reports");
       console.error(error);
+      setReports([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Organizations from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchOrgs = async () => {
-    setOrgs(MOCK_ORGS.map((o: Org) => ({ value: o._id, label: o.orgName })));
+    try {
+      const response = await orgsAPI.getAll();
+      const apiResponse = response.data;
+
+      if (apiResponse.success && Array.isArray(apiResponse.data)) {
+        setOrgs(apiResponse.data.map((o: Org) => ({ value: o._id, label: o.orgName })));
+      }
+    } catch (error: unknown) {
+      console.error("Failed to fetch organizations:", error);
+      setOrgs([]);
+    }
   };
 
   useEffect(() => {
@@ -431,6 +191,9 @@ export default function ReportsPage() {
     fetchOrgs();
   }, []);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Modal Handlers
+  // ───────────────────────────────────────────────────────────────────────────
   const openCreateModal = () => {
     setEditingReport(null);
     reset({ orgId: "", reportType: "" });
@@ -464,6 +227,9 @@ export default function ReportsPage() {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Form Submissions
+  // ───────────────────────────────────────────────────────────────────────────
   const onSubmit = async (data: { orgId: string; reportType: string }) => {
     if (!isEditing && files.length === 0) {
       toast.error("Please attach at least one file");
@@ -477,17 +243,21 @@ export default function ReportsPage() {
       files.forEach((file) => {
         formData.append("files", file);
       });
-      const response = await mockAPI.create(formData);
-      if (response.success) {
+
+      const response = await reportsAPI.create(formData);
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
         toast.success("Report submitted successfully");
         closeModal();
         fetchReports();
       } else {
-        toast.error(response.message);
+        toast.error(apiResponse.message || "Failed to submit report");
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to submit report";
+      toast.error(message);
       console.error(error);
-      toast.error("Failed to submit report");
     } finally {
       setSubmitting(false);
     }
@@ -502,51 +272,64 @@ export default function ReportsPage() {
     try {
       setSubmitting(true);
       const payload = { status: editStatus, message: editMessage.trim() || undefined };
+
       if (editingReport) {
-        const response = await mockAPI.updateStatus(editingReport._id, payload);
-        if (response.success) {
+        const response = await reportsAPI.updateStatus(editingReport._id, payload);
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
           toast.success("Report status updated successfully");
           closeModal();
           fetchReports();
         } else {
-          toast.error(response.message);
+          toast.error(apiResponse.message || "Failed to update report status");
         }
       }
-    } catch (error: unknown) {
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to update report status";
+      toast.error(message);
       console.error(error);
-      toast.error("Failed to update report status");
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Delete Handler
+  // ───────────────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     try {
       setDeleting(true);
       if (deleteTarget) {
-        const response = await mockAPI.delete(deleteTarget._id);
-        if (response.success) {
+        const response = await reportsAPI.delete(deleteTarget._id);
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
           toast.success("Report deleted successfully");
           setDeleteTarget(null);
           fetchReports();
         } else {
-          toast.error(response.message);
+          toast.error(apiResponse.message || "Failed to delete report");
         }
       }
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to delete report";
+      toast.error(message);
       console.error(error);
-      toast.error("Failed to delete report");
     } finally {
       setDeleting(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Table Columns
+  // ───────────────────────────────────────────────────────────────────────────
   const columns: ColumnDef<Report>[] = [
     {
       header: "Organization",
       accessorKey: "orgId",
       cell: (row) => {
-        const orgId = row.orgId;
+        const orgId = row.orgId as any;
         return typeof orgId === "object" ? orgId.orgName : "—";
       },
     },
@@ -572,7 +355,7 @@ export default function ReportsPage() {
       header: "Submitted By",
       accessorKey: "submittedBy",
       cell: (row) => {
-        const submittedBy = row.submittedBy;
+        const submittedBy = row.submittedBy as any;
         return typeof submittedBy === "object" ? submittedBy.username : "—";
       },
     },
@@ -611,6 +394,9 @@ export default function ReportsPage() {
     },
   ];
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading State
+  // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -619,6 +405,9 @@ export default function ReportsPage() {
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <>
       <title>CampusHub | Reports</title>
@@ -669,6 +458,7 @@ export default function ReportsPage() {
 
         <DataTable columns={columns} data={reports} searchPlaceholder="Search reports..." />
 
+        {/* Create Report Modal */}
         <Modal isOpen={modalOpen && !isEditing} onClose={closeModal} title="Submit New Report">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
@@ -705,7 +495,9 @@ export default function ReportsPage() {
               >
                 <Upload className="text-muted-foreground/50 mx-auto mb-2 h-7 w-7" />
                 <p className="text-muted-foreground text-sm">Click to upload files</p>
-                <p className="text-muted-foreground/70 mt-1 text-xs">PDF, DOC, DOCX, XLS, XLSX</p>
+                <p className="text-muted-foreground/70 mt-1 text-xs">
+                  PDF, DOC, DOCX, XLS, XLSX (Max 5 files, 10MB each)
+                </p>
               </div>
               <input
                 ref={fileInputRef}
@@ -750,6 +542,7 @@ export default function ReportsPage() {
           </form>
         </Modal>
 
+        {/* Edit Status Modal */}
         <Modal isOpen={modalOpen && isEditing} onClose={closeModal} title="Update Report Status">
           <form onSubmit={onEditStatusSubmit} className="space-y-4">
             <div className="text-muted-foreground border-border space-y-1 border-b pb-2 text-sm">

@@ -18,27 +18,12 @@ import { useAuthentication } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ColumnDef } from "@tanstack/react-table";
+import { eventsAPI, type SchoolEvent } from "@/api/events-api";
+import { ROLES } from "@/config/constants/roles";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Types (matching backend response shapes)
+// Types
 // ─────────────────────────────────────────────────────────────────────────────
-interface SchoolEvent {
-  _id: string;
-  title: string;
-  objective?: string;
-  allDay: boolean;
-  startDate: string;
-  endDate: string;
-  startTime?: string;
-  endTime?: string;
-  venue: string;
-  organizedBy: "admin" | "department";
-  createdAt: string;
-  updatedAt: string;
-  description?: string;
-  status?: "upcoming" | "ongoing" | "completed" | "cancelled";
-}
-
 interface CreateEventInput {
   title: string;
   objective?: string;
@@ -49,7 +34,6 @@ interface CreateEventInput {
   endTime?: string;
   venue: string;
   organizedBy: "admin" | "department";
-  description?: string;
 }
 
 interface UpdateEventInput {
@@ -62,300 +46,7 @@ interface UpdateEventInput {
   endTime?: string;
   venue?: string;
   organizedBy?: "admin" | "department";
-  description?: string;
 }
-
-interface SuccessResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
-}
-
-interface FailResponse {
-  success: false;
-  status: "fail";
-  message: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock Data - Pre-populated Events
-// ─────────────────────────────────────────────────────────────────────────────
-const INITIAL_EVENTS: SchoolEvent[] = [
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e001",
-    title: "Welcome Orientation 2025",
-    objective: "Introduce new students to campus life and resources",
-    allDay: true,
-    startDate: "2025-03-01T00:00:00.000Z",
-    endDate: "2025-03-01T23:59:59.000Z",
-    venue: "Main Auditorium",
-    organizedBy: "admin",
-    createdAt: "2025-01-10T08:00:00.000Z",
-    updatedAt: "2025-01-10T08:00:00.000Z",
-    description: "Annual orientation program for freshmen",
-    status: "completed",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e002",
-    title: "CS Department Career Fair",
-    objective: "Connect students with tech companies for internships and jobs",
-    allDay: false,
-    startDate: "2025-03-15T00:00:00.000Z",
-    endDate: "2025-03-15T23:59:59.000Z",
-    startTime: "09:00",
-    endTime: "17:00",
-    venue: "Engineering Building Lobby",
-    organizedBy: "department",
-    createdAt: "2025-01-15T10:00:00.000Z",
-    updatedAt: "2025-02-01T14:30:00.000Z",
-    description: "Spring 2025 Career Fair featuring 50+ tech companies",
-    status: "ongoing",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e003",
-    title: "Student Leadership Summit",
-    objective: "Develop leadership skills among student officers",
-    allDay: false,
-    startDate: "2025-03-28T00:00:00.000Z",
-    endDate: "2025-03-28T23:59:59.000Z",
-    startTime: "08:00",
-    endTime: "16:00",
-    venue: "Conference Center Hall A",
-    organizedBy: "admin",
-    createdAt: "2025-02-01T09:00:00.000Z",
-    updatedAt: "2025-02-10T11:00:00.000Z",
-    description: "Full-day leadership training workshop",
-    status: "upcoming",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e004",
-    title: "Intramural Sports Festival",
-    objective: "Promote physical fitness and team spirit",
-    allDay: true,
-    startDate: "2025-04-05T00:00:00.000Z",
-    endDate: "2025-04-06T23:59:59.000Z",
-    venue: "University Sports Complex",
-    organizedBy: "admin",
-    createdAt: "2025-02-05T13:00:00.000Z",
-    updatedAt: "2025-02-05T13:00:00.000Z",
-    description: "Annual sports competition with multiple events",
-    status: "upcoming",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e005",
-    title: "Research Symposium",
-    objective: "Showcase undergraduate and graduate research projects",
-    allDay: false,
-    startDate: "2025-04-20T00:00:00.000Z",
-    endDate: "2025-04-20T23:59:59.000Z",
-    startTime: "10:00",
-    endTime: "18:00",
-    venue: "Science Building Atrium",
-    organizedBy: "department",
-    createdAt: "2025-02-10T08:30:00.000Z",
-    updatedAt: "2025-02-15T16:00:00.000Z",
-    description: "Present research findings to faculty and peers",
-    status: "upcoming",
-  },
-  {
-    _id: "67d8f2a1c9e8b3a4d5e6e006",
-    title: "Cultural Night 2025",
-    objective: "Celebrate diversity through performances and food",
-    allDay: false,
-    startDate: "2025-02-14T00:00:00.000Z",
-    endDate: "2025-02-14T23:59:59.000Z",
-    startTime: "18:00",
-    endTime: "22:00",
-    venue: "Student Center Ballroom",
-    organizedBy: "admin",
-    createdAt: "2025-01-05T10:00:00.000Z",
-    updatedAt: "2025-01-20T09:00:00.000Z",
-    description: "Annual cultural celebration event - cancelled due to venue issues",
-    status: "cancelled",
-  },
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// In-Memory Store (simulates database)
-// ─────────────────────────────────────────────────────────────────────────────
-let events: SchoolEvent[] = [...INITIAL_EVENTS];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock API Functions (returning backend-compatible responses)
-// ─────────────────────────────────────────────────────────────────────────────
-const mockAPI = {
-  getAll(): Promise<SuccessResponse<SchoolEvent[]>> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          message: "Events fetched successfully",
-          data: [...events],
-        });
-      }, 300);
-    });
-  },
-
-  getById(id: string): Promise<SuccessResponse<SchoolEvent> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const event = events.find((e) => e._id === id);
-        if (event) {
-          resolve({
-            success: true,
-            message: "Event fetched successfully",
-            data: { ...event },
-          });
-        } else {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Event not found",
-          });
-        }
-      }, 200);
-    });
-  },
-
-  create(
-    input: CreateEventInput & { status?: string },
-  ): Promise<SuccessResponse<SchoolEvent> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Validate title is unique
-        const existing = events.find((e) => e.title.toLowerCase() === input.title.toLowerCase());
-        if (existing) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Event with this title already exists",
-          });
-          return;
-        }
-
-        // Calculate status based on dates
-        const status = input.status || calculateEventStatus(input.startDate, input.endDate);
-
-        const now = new Date().toISOString();
-        const newEvent: SchoolEvent = {
-          _id: `67d8f2a1c9e8b3a4d5e6e${Math.floor(Math.random() * 10000)
-            .toString()
-            .padStart(3, "0")}`,
-          title: input.title,
-          objective: input.objective,
-          allDay: input.allDay,
-          startDate: input.startDate,
-          endDate: input.endDate,
-          startTime: input.allDay ? undefined : input.startTime,
-          endTime: input.allDay ? undefined : input.endTime,
-          venue: input.venue,
-          organizedBy: input.organizedBy,
-          createdAt: now,
-          updatedAt: now,
-          description: input.description,
-          status: status as "upcoming" | "ongoing" | "completed" | "cancelled",
-        };
-        events.push(newEvent);
-        resolve({
-          success: true,
-          message: "Event created successfully",
-          data: { ...newEvent },
-        });
-      }, 300);
-    });
-  },
-
-  update(
-    id: string,
-    input: UpdateEventInput & { status?: string },
-  ): Promise<SuccessResponse<SchoolEvent> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const eventIndex = events.findIndex((e) => e._id === id);
-        if (eventIndex === -1) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Event not found",
-          });
-          return;
-        }
-
-        // Allowed fields to update: title, objective, startDate, endDate, startTime, endTime, venue, organizedBy, allDay
-        const allowedFields: (keyof UpdateEventInput)[] = [
-          "title",
-          "objective",
-          "startDate",
-          "endDate",
-          "startTime",
-          "endTime",
-          "venue",
-          "organizedBy",
-          "allDay",
-          "description",
-        ];
-
-        const updatedEvent: SchoolEvent = {
-          ...events[eventIndex],
-          updatedAt: new Date().toISOString(),
-        };
-
-        // Only update allowed fields that are provided
-        allowedFields.forEach((field) => {
-          if (input[field] !== undefined) {
-            (updatedEvent as any)[field] = input[field];
-          }
-        });
-
-        // If allDay is true, clear startTime and endTime
-        if (updatedEvent.allDay) {
-          updatedEvent.startTime = undefined;
-          updatedEvent.endTime = undefined;
-        }
-
-        // Calculate status based on dates (auto-calculated, not user-provided)
-        if (input.startDate || input.endDate) {
-          updatedEvent.status = calculateEventStatus(
-            input.startDate || updatedEvent.startDate,
-            input.endDate || updatedEvent.endDate,
-          );
-        } else if (input.status) {
-          updatedEvent.status = input.status as "upcoming" | "ongoing" | "completed";
-        }
-
-        events[eventIndex] = updatedEvent;
-        resolve({
-          success: true,
-          message: "Event updated successfully",
-          data: { ...updatedEvent },
-        });
-      }, 300);
-    });
-  },
-
-  delete(id: string): Promise<SuccessResponse<SchoolEvent> | FailResponse> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const eventIndex = events.findIndex((e) => e._id === id);
-        if (eventIndex === -1) {
-          resolve({
-            success: false,
-            status: "fail",
-            message: "Event not found",
-          });
-          return;
-        }
-        const deletedEvent = events[eventIndex];
-        events.splice(eventIndex, 1);
-        resolve({
-          success: true,
-          message: "Event deleted successfully",
-          data: { ...deletedEvent },
-        });
-      }, 300);
-    });
-  },
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UI Configuration
@@ -401,7 +92,6 @@ const eventSchema = z.object({
   endTime: z.string().optional(),
   venue: z.string().min(1, "Venue is required"),
   organizedBy: z.enum(["admin", "department"]),
-  description: z.string().optional(),
 });
 
 type EventForm = z.infer<typeof eventSchema>;
@@ -427,7 +117,7 @@ const calculateEventStatus = (
 // ─────────────────────────────────────────────────────────────────────────────
 export default function EventsPage() {
   const { authenticatedUser } = useAuthentication();
-  const canManage = authenticatedUser?.role === "admin" || authenticatedUser?.role === "adviser";
+  const canManage = authenticatedUser?.role === ROLES.ADMIN || authenticatedUser?.role === ROLES.ADVISER;
 
   const [eventsList, setEventsList] = useState<SchoolEvent[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -455,14 +145,33 @@ export default function EventsPage() {
 
   const allDay = watch("allDay");
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Events from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await mockAPI.getAll();
-      setEventsList(response.data);
-    } catch (error) {
+      const response = await eventsAPI.getAll({ limit: 100 });
+      const apiResponse = response.data;
+
+      let eventsData: SchoolEvent[] = [];
+
+      if (apiResponse.success) {
+        if (Array.isArray(apiResponse.data)) {
+          eventsData = apiResponse.data;
+        } else if (apiResponse.data && Array.isArray(apiResponse.data.items)) {
+          eventsData = apiResponse.data.items;
+        } else if (apiResponse.data?.items) {
+          eventsData = apiResponse.data.items;
+        }
+
+        setEventsList(eventsData);
+      } else {
+        toast.error(apiResponse.message || "Failed to fetch events");
+      }
+    } catch (error: any) {
+      console.error("Error fetching events:", error);
       toast.error("Failed to fetch events");
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -472,7 +181,14 @@ export default function EventsPage() {
     fetchEvents();
   }, []);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Modal Handlers
+  // ───────────────────────────────────────────────────────────────────────────
   const openCreateModal = () => {
+    if (!canManage) {
+      toast.error("You don't have permission to create events");
+      return;
+    }
     setEditingEvent(null);
     reset({
       title: "",
@@ -484,12 +200,15 @@ export default function EventsPage() {
       endTime: "",
       venue: "",
       organizedBy: "admin",
-      description: "",
     });
     setModalOpen(true);
   };
 
   const openEditModal = (event: SchoolEvent) => {
+    if (!canManage) {
+      toast.error("You don't have permission to edit events");
+      return;
+    }
     setEditingEvent(event);
     reset({
       title: event.title,
@@ -501,7 +220,6 @@ export default function EventsPage() {
       endTime: event.endTime || "",
       venue: event.venue,
       organizedBy: event.organizedBy,
-      description: event.description || "",
     });
     setModalOpen(true);
   };
@@ -512,10 +230,17 @@ export default function EventsPage() {
     reset();
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // CRUD Operations
+  // ───────────────────────────────────────────────────────────────────────────
   const onSubmit = async (data: EventForm) => {
+    if (!canManage) {
+      toast.error("You don't have permission to manage events");
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-      // Calculate status based on dates
       const status = calculateEventStatus(data.startDate, data.endDate);
 
       const payload: CreateEventInput = {
@@ -528,61 +253,72 @@ export default function EventsPage() {
         endTime: data.allDay ? undefined : data.endTime,
         venue: data.venue,
         organizedBy: data.organizedBy,
-        description: data.description,
       };
 
       let response;
       if (isEditing && editingEvent) {
-        response = await mockAPI.update(editingEvent._id, { ...payload, status });
-        if (response.success) {
-          toast.success("Event updated successfully");
+        response = await eventsAPI.update(editingEvent._id, { ...payload, status } as UpdateEventInput & { status: string });
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
+          toast.success(apiResponse.message || "Event updated successfully");
+          fetchEvents();
+          closeModal();
         } else {
-          toast.error(response.message);
-          return;
+          toast.error(apiResponse.message || "Failed to update event");
         }
       } else {
-        response = await mockAPI.create({ ...payload, status } as CreateEventInput & {
-          status: string;
-        });
-        if (response.success) {
-          toast.success("Event created successfully");
+        response = await eventsAPI.create({ ...payload, status } as CreateEventInput & { status: string });
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
+          toast.success(apiResponse.message || "Event created successfully");
+          fetchEvents();
+          closeModal();
         } else {
-          toast.error(response.message);
-          return;
+          toast.error(apiResponse.message || "Failed to create event");
         }
       }
-      closeModal();
-      fetchEvents();
-    } catch (error) {
-      console.error(error);
-      toast.error(isEditing ? "Failed to update event" : "Failed to create event");
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || (isEditing ? "Failed to update event" : "Failed to create event");
+      toast.error(message);
+      console.error("Event submit error:", error);
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    try {
-      setDeleting(true);
-      if (deleteTarget) {
-        const response = await mockAPI.delete(deleteTarget._id);
-        if (response.success) {
-          toast.success("Event deleted successfully");
-        } else {
-          toast.error(response.message);
-          return;
-        }
-      }
+    if (!canManage || !deleteTarget) {
+      toast.error("You don't have permission to delete events");
       setDeleteTarget(null);
-      fetchEvents();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete event");
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await eventsAPI.delete(deleteTarget._id);
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
+        toast.success(apiResponse.message || "Event deleted successfully");
+        fetchEvents();
+      } else {
+        toast.error(apiResponse.message || "Failed to delete event");
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.message || "Failed to delete event";
+      toast.error(message);
+      console.error("Delete event error:", error);
     } finally {
       setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Table Columns
+  // ───────────────────────────────────────────────────────────────────────────
   const columns: ColumnDef<SchoolEvent>[] = [
     {
       header: "Title",
@@ -653,6 +389,9 @@ export default function EventsPage() {
       : []),
   ];
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading State
+  // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -661,6 +400,9 @@ export default function EventsPage() {
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <>
       <title>CampusHub | Events Management</title>
@@ -738,6 +480,7 @@ export default function EventsPage() {
 
         <DataTable columns={columns} data={eventsList} searchPlaceholder="Search events..." />
 
+        {/* Create/Edit Event Modal */}
         {canManage && (
           <Modal
             isOpen={modalOpen}
@@ -761,60 +504,24 @@ export default function EventsPage() {
                     <p className="text-destructive mt-1 text-sm">{errors.objective.message}</p>
                   )}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    placeholder="Brief description"
-                    {...register("description")}
-                  />
-                  {errors.description && (
-                    <p className="text-destructive mt-1 text-sm">{errors.description.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="venue">Venue</Label>
-                  <Input id="venue" placeholder="Event venue" {...register("venue")} />
-                  {errors.venue && (
-                    <p className="text-destructive mt-1 text-sm">{errors.venue.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="organizedBy">Organized By</Label>
-                  <Select
-                    id="organizedBy"
-                    options={ORGANIZED_BY_OPTIONS}
-                    placeholder="Select organizer"
-                    {...register("organizedBy")}
-                  />
-                  {errors.organizedBy && (
-                    <p className="text-destructive mt-1 text-sm">{errors.organizedBy.message}</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="allDay" {...register("allDay")} className="h-4 w-4" />
-                  <Label htmlFor="allDay" className="cursor-pointer">
-                    All Day Event
-                  </Label>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="startDate">Start Date</Label>
                     <Input id="startDate" type="date" {...register("startDate")} />
                     {errors.startDate && (
-                      <p className="text-destructive text-sm">{errors.startDate.message}</p>
+                      <p className="text-destructive mt-1 text-sm">{errors.startDate.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="endDate">End Date</Label>
                     <Input id="endDate" type="date" {...register("endDate")} />
                     {errors.endDate && (
-                      <p className="text-destructive text-sm">{errors.endDate.message}</p>
+                      <p className="text-destructive mt-1 text-sm">{errors.endDate.message}</p>
                     )}
                   </div>
                 </div>
                 {!allDay && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="startTime">Start Time</Label>
                       <Input id="startTime" type="time" {...register("startTime")} />
@@ -825,8 +532,34 @@ export default function EventsPage() {
                     </div>
                   </div>
                 )}
+                <div className="space-y-2">
+                  <Label htmlFor="venue">Venue</Label>
+                  <Input id="venue" placeholder="Event venue" {...register("venue")} />
+                  {errors.venue && (
+                    <p className="text-destructive mt-1 text-sm">{errors.venue.message}</p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="organizedBy">Organized By</Label>
+                    <Select
+                      id="organizedBy"
+                      options={ORGANIZED_BY_OPTIONS}
+                      placeholder="Select organizer"
+                      {...register("organizedBy")}
+                      error={errors.organizedBy?.message}
+                    />
+                  </div>
+                  <div className="flex items-end pb-2">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" {...register("allDay")} className="rounded" />
+                      All Day Event
+                    </label>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t">
+
+              <div className="flex justify-end gap-3 pt-4">
                 <Button variant="outline" type="button" onClick={closeModal}>
                   Cancel
                 </Button>
@@ -838,6 +571,7 @@ export default function EventsPage() {
           </Modal>
         )}
 
+        {/* Delete Confirmation Dialog */}
         {canManage && (
           <ConfirmDialog
             isOpen={!!deleteTarget}

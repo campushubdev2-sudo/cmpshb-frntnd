@@ -2,7 +2,7 @@ import DataTable from "@/components/shared/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Lock, Mail, Phone, Plus, Shield, User, UserPen, UserPlus } from "lucide-react";
+import { Lock, Mail, Phone, Plus, Shield, User as UserIcon, UserPen, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -20,14 +20,30 @@ import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { useAuthentication } from "@/contexts/AuthContext";
+import { usersAPI, type User } from "@/api/users-api";
+import { ROLES } from "@/config/constants/roles";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
 const roleOptions = [
-  { value: "admin", label: "Admin" },
-  { value: "adviser", label: "Adviser" },
-  { value: "officer", label: "Officer" },
-  { value: "student", label: "Student" },
+  { value: ROLES.ADMIN, label: "Admin" },
+  { value: ROLES.ADVISER, label: "Adviser" },
+  { value: ROLES.OFFICER, label: "Officer" },
+  { value: ROLES.STUDENT, label: "Student" },
 ];
 
+const roleBadgeVariant = {
+  admin: "destructive",
+  adviser: "secondary",
+  officer: "secondary",
+  student: "default",
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Validation Schemas
+// ─────────────────────────────────────────────────────────────────────────────
 const phoneTransform = (val: string) => {
   if (!val) return val;
   if (val.startsWith("0")) return "+63" + val.slice(1);
@@ -70,27 +86,19 @@ const editUserSchema = z.object({
     }),
 });
 
-const roleBadgeVariant = {
-  admin: "destructive",
-  adviser: "secondary",
-  officer: "secondary",
-  student: "default",
-} as const;
-
-interface User {
-  _id: string;
-  username: string;
-  email: string;
-  role: string;
-  phoneNumber?: string | null;
-  createdAt: string;
-  password?: string;
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 type CreateUserFormData = z.infer<typeof createUserSchema>;
 type EditUserFormData = z.infer<typeof editUserSchema>;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
 const UsersPage = () => {
+  const { authenticatedUser } = useAuthentication();
+  const canManageUsers = authenticatedUser?.role === ROLES.ADMIN;
+
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,59 +124,33 @@ const UsersPage = () => {
     formState: { errors },
   } = isEditing ? editForm : createForm;
 
-  useEffect(() => {
-    setUsers([
-      {
-        _id: "u1",
-        username: "admin1",
-        email: "admin1@example.com",
-        role: "admin",
-        phoneNumber: "09123456789",
-        createdAt: new Date("2026-01-01").toISOString(),
-      },
-      {
-        _id: "u2",
-        username: "student1",
-        email: "student1@example.com",
-        role: "student",
-        phoneNumber: null,
-        createdAt: new Date("2026-01-05").toISOString(),
-      },
-      {
-        _id: "u3",
-        username: "officer1",
-        email: "officer1@example.com",
-        role: "officer",
-        phoneNumber: "09987654321",
-        createdAt: new Date("2026-01-10").toISOString(),
-      },
-      {
-        _id: "u4",
-        username: "guest1",
-        email: "guest1@example.com",
-        role: "guest",
-        phoneNumber: null,
-        createdAt: new Date("2026-01-15").toISOString(),
-      },
-      {
-        _id: "u5",
-        username: "student2",
-        email: "student2@example.com",
-        role: "student",
-        phoneNumber: "09000000000",
-        createdAt: new Date("2026-01-20").toISOString(),
-      },
-    ]);
-    setLoading(false);
-  }, []);
-
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Users from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      // const response = await usersAPI.getAll({ limit: 100 });
-      // const data = response.data;
-      // setUsers(Array.isArray(data) ? data : data?.items || []);
+      const response = await usersAPI.getAll({ limit: 100 });
+      const apiResponse = response.data;
+
+      // Handle different response structures
+      let usersData: User[] = [];
+      
+      if (apiResponse.success) {
+        if (Array.isArray(apiResponse.data)) {
+          usersData = apiResponse.data;
+        } else if (apiResponse.data && Array.isArray(apiResponse.data.items)) {
+          usersData = apiResponse.data.items;
+        } else if (apiResponse.data?.items) {
+          usersData = apiResponse.data.items;
+        }
+
+        setUsers(usersData);
+      } else {
+        toast.error(apiResponse.message || "Failed to fetch users");
+      }
     } catch (error) {
+      console.error("Error fetching users:", error);
       toast.error("Failed to fetch users");
     } finally {
       setLoading(false);
@@ -179,6 +161,9 @@ const UsersPage = () => {
     fetchUsers();
   }, []);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Modal Handlers
+  // ───────────────────────────────────────────────────────────────────────────
   const closeModal = () => {
     setModalOpen(false);
     setEditingUser(null);
@@ -187,16 +172,24 @@ const UsersPage = () => {
   };
 
   const openCreateModal = () => {
+    if (!canManageUsers) {
+      toast.error("You don't have permission to create users");
+      return;
+    }
     setEditingUser(null);
     createForm.reset();
     setModalOpen(true);
   };
 
   const openEditModal = (user: User) => {
+    if (!canManageUsers) {
+      toast.error("You don't have permission to edit users");
+      return;
+    }
     setEditingUser(user);
     editForm.reset({
       username: user.username,
-      email: user.email,
+      email: user.email || "",
       role: user.role,
       phoneNumber: user.phoneNumber || "",
       password: "",
@@ -204,43 +197,106 @@ const UsersPage = () => {
     setModalOpen(true);
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // CRUD Operations
+  // ───────────────────────────────────────────────────────────────────────────
   const onCreate = async (data: CreateUserFormData) => {
+    if (!canManageUsers) {
+      toast.error("You don't have permission to create users");
+      return;
+    }
+
     setSubmitting(true);
-    const newUser: User = {
-      _id: Date.now().toString(),
-      username: data.username,
-      email: data.email,
-      role: data.role,
-      phoneNumber: data.phoneNumber,
-      createdAt: new Date().toISOString(),
-    };
-    setUsers((prev) => [newUser, ...prev]);
-    setSubmitting(false);
-    closeModal();
+    try {
+      const response = await usersAPI.create(data);
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
+        toast.success("User created successfully");
+        fetchUsers();
+        closeModal();
+      } else {
+        // Display the actual backend error message
+        toast.error(apiResponse.message || "Failed to create user");
+      }
+    } catch (error: any) {
+      console.error("Error creating user:", error);
+      // Try to extract error message from response
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to create user";
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const onEdit = async (data: EditUserFormData) => {
-    if (!editingUser) return;
+    if (!canManageUsers || !editingUser) {
+      toast.error("You don't have permission to edit users");
+      return;
+    }
+
     setSubmitting(true);
-    setUsers((prev) =>
-      prev.map((u) =>
-        u._id === editingUser._id
-          ? { ...u, ...data, ...(data.password ? { password: data.password } : {}) }
-          : u,
-      ),
-    );
-    setSubmitting(false);
-    closeModal();
+    try {
+      // Only include password if it was provided
+      const updateData: Partial<User> = {
+        username: data.username,
+        email: data.email,
+        role: data.role,
+        phoneNumber: data.phoneNumber,
+      };
+
+      if (data.password) {
+        updateData.password = data.password;
+      }
+
+      const response = await usersAPI.update(editingUser._id, updateData);
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
+        toast.success("User updated successfully");
+        fetchUsers();
+        closeModal();
+      } else {
+        toast.error(apiResponse.message || "Failed to update user");
+      }
+    } catch (error: any) {
+      console.error("Error updating user:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to update user";
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const onDelete = () => {
-    if (deleteTarget) {
-      setUsers((prev) => prev.filter((u) => u._id !== deleteTarget._id));
-      toast.success("User deleted successfully");
+  const onDelete = async () => {
+    if (!canManageUsers || !deleteTarget) {
+      toast.error("You don't have permission to delete users");
+      setDeleteTarget(null);
+      return;
+    }
+
+    try {
+      const response = await usersAPI.delete(deleteTarget._id);
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
+        toast.success("User deleted successfully");
+        fetchUsers();
+      } else {
+        toast.error(apiResponse.message || "Failed to delete user");
+      }
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to delete user";
+      toast.error(errorMessage);
+    } finally {
       setDeleteTarget(null);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Table Columns
+  // ───────────────────────────────────────────────────────────────────────────
   const columns: any[] = [
     { header: "Username", accessorKey: "username" },
     { header: "Email", accessorKey: "email" },
@@ -263,22 +319,29 @@ const UsersPage = () => {
       accessorKey: "createdAt",
       cell: (row: User) => (row.createdAt ? format(new Date(row.createdAt), "MMM dd, yyyy") : "—"),
     },
-    {
-      header: "Actions",
-      accessorKey: "actions",
-      cell: (row: User) => (
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => openEditModal(row)}>
-            Edit
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(row)}>
-            Delete
-          </Button>
-        </div>
-      ),
-    },
+    ...(canManageUsers
+      ? [
+          {
+            header: "Actions",
+            accessorKey: "actions",
+            cell: (row: User) => (
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => openEditModal(row)}>
+                  Edit
+                </Button>
+                <Button variant="destructive" size="sm" onClick={() => setDeleteTarget(row)}>
+                  Delete
+                </Button>
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <>
       <title>CampusHub | User Management</title>
@@ -288,16 +351,19 @@ const UsersPage = () => {
             <h1 className="text-2xl font-bold text-foreground">Users</h1>
             <p className="text-muted-foreground mt-1">Manage platform users</p>
           </div>
-          <Button onClick={openCreateModal}>
-            <div className="flex items-center justify-center">
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
-            </div>
-          </Button>
+          {canManageUsers && (
+            <Button onClick={openCreateModal}>
+              <div className="flex items-center justify-center">
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </div>
+            </Button>
+          )}
         </div>
 
         <DataTable columns={columns} data={users} searchPlaceholder="Search users..." />
 
+        {/* Create/Edit User Dialog */}
         <Dialog open={modalOpen} onOpenChange={(open) => !open && closeModal()}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
@@ -340,7 +406,7 @@ const UsersPage = () => {
                     htmlFor="username"
                     className="flex items-center gap-1.5 text-sm font-medium"
                   >
-                    <User className="h-3.5 w-3.5 text-muted-foreground" />
+                    <UserIcon className="h-3.5 w-3.5 text-muted-foreground" />
                     Username
                   </Label>
                   <Input
@@ -383,6 +449,11 @@ const UsersPage = () => {
                     {...register("password")}
                     error={errors.password?.message}
                   />
+                  {!isEditing && (
+                    <p className="text-xs text-muted-foreground">
+                      Must include uppercase, lowercase, number, and special character
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -450,6 +521,7 @@ const UsersPage = () => {
           </DialogContent>
         </Dialog>
 
+        {/* Delete Confirmation Dialog */}
         <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>

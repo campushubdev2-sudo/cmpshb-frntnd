@@ -15,122 +15,17 @@ import { Badge } from "../../components/ui/badge";
 import DataTable from "../../components/shared/DataTable";
 import ConfirmDialog from "../../components/shared/ConfirmDialog";
 import LoadingSpinner from "../../components/shared/LoadingSpinner";
-import type { ColumnDef, CellContext } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { auditLogsAPI, type AuditLog as BackendAuditLog } from "../../api/audit-logs-api";
 
-interface UserInfo {
-  _id: string;
-  username: string;
-  role: string;
-  email: string;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+interface AuditLog extends BackendAuditLog {}
 
-interface AuditLog {
-  _id: string;
-  userId: string | UserInfo;
-  action: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const mockLogs: AuditLog[] = [
-  {
-    _id: "69c311edd1f76e8cb0873f15",
-    userId: {
-      _id: "699d91d92b2b363622f359d6",
-      username: "admin",
-      role: "admin",
-      email: "admin@example.com",
-    },
-    action: "Sign In",
-    createdAt: "2026-03-24T22:36:29.118Z",
-    updatedAt: "2026-03-24T22:36:29.118Z",
-  },
-  {
-    _id: "69c2de456ea4ec8cd5e1048c",
-    userId: {
-      _id: "69bab6977197c4451af99063",
-      username: "admin",
-      role: "student",
-      email: "admin@example.com",
-    },
-    action: "View User Details",
-    createdAt: "2026-03-24T18:56:05.730Z",
-    updatedAt: "2026-03-24T18:56:05.730Z",
-  },
-  {
-    _id: "69c31200d1f76e8cb0873f16",
-    userId: {
-      _id: "69be9188c8cbba2826335ced",
-      username: "maria",
-      role: "admin",
-      email: "maria@gmail.com",
-    },
-    action: "Create Report",
-    createdAt: "2026-03-24T20:15:00.000Z",
-    updatedAt: "2026-03-24T20:15:00.000Z",
-  },
-  {
-    _id: "69c31210d1f76e8cb0873f17",
-    userId: {
-      _id: "699d91d92b2b363622f359d6",
-      username: "admin",
-      role: "admin",
-      email: "admin@example.com",
-    },
-    action: "Update Event",
-    createdAt: "2026-03-24T19:30:00.000Z",
-    updatedAt: "2026-03-24T19:30:00.000Z",
-  },
-  {
-    _id: "69c31220d1f76e8cb0873f18",
-    userId: {
-      _id: "69be9188c8cbba2826335ced",
-      username: "maria",
-      role: "admin",
-      email: "maria@gmail.com",
-    },
-    action: "Delete Notification",
-    createdAt: "2026-03-24T17:45:00.000Z",
-    updatedAt: "2026-03-24T17:45:00.000Z",
-  },
-  {
-    _id: "69c31230d1f76e8cb0873f19",
-    userId: {
-      _id: "699d91d92b2b363622f359d6",
-      username: "admin",
-      role: "admin",
-      email: "admin@example.com",
-    },
-    action: "Export Data",
-    createdAt: "2026-03-24T16:00:00.000Z",
-    updatedAt: "2026-03-24T16:00:00.000Z",
-  },
-  {
-    _id: "69c31240d1f76e8cb0873f20",
-    userId: {
-      _id: "69be9188c8cbba2826335ced",
-      username: "maria",
-      role: "admin",
-      email: "maria@gmail.com",
-    },
-    action: "User Login",
-    createdAt: "2026-03-24T14:30:00.000Z",
-    updatedAt: "2026-03-24T14:30:00.000Z",
-  },
-  {
-    _id: "69c31250d1f76e8cb0873f21",
-    userId: {
-      _id: "699d91d92b2b363622f359d6",
-      username: "admin",
-      role: "admin",
-      email: "admin@example.com",
-    },
-    action: "Settings Updated",
-    createdAt: "2026-03-24T12:00:00.000Z",
-    updatedAt: "2026-03-24T12:00:00.000Z",
-  },
-];
-
+// ─────────────────────────────────────────────────────────────────────────────
+// UI Configuration
+// ─────────────────────────────────────────────────────────────────────────────
 const actionBadgeVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   "Sign In": "default",
   "User Login": "default",
@@ -145,8 +40,53 @@ const actionBadgeVariant: Record<string, "default" | "secondary" | "destructive"
   "Delete Notification": "destructive",
   "Export Data": "secondary",
   "Settings Updated": "outline",
+  "View Profile": "default",
+  "Sign Up": "default",
+  "Reset Password": "secondary",
+  "Logout": "outline",
+  "Create User": "secondary",
+  "View Users": "outline",
+  "Update User": "secondary",
+  "Delete User": "destructive",
+  "Register Organization": "secondary",
+  "Create Organization": "secondary",
+  "View Organizations": "outline",
+  "Update Organization": "secondary",
+  "Delete Organization": "destructive",
+  "View Events": "outline",
+  "View Event Details": "outline",
+  "Create Notification": "secondary",
+  "View Notifications": "outline",
+  "View Notification Details": "outline",
+  "Update Notification": "secondary",
+  "Download Reports": "secondary",
+  "Update Report Status": "secondary",
+  "View Report Details": "outline",
+  "View Reports": "outline",
+  "Create Calendar Entry": "secondary",
+  "View Calendar Entries": "outline",
+  "Update Calendar Entry": "secondary",
+  "Delete Calendar Entry": "destructive",
+  "View Calendar Entry Details": "outline",
+  "Create Officer": "secondary",
+  "View Officers": "outline",
+  "View Officer Details": "outline",
+  "Update Officer": "secondary",
+  "Delete Officer": "destructive",
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: Normalize backend audit log
+// ─────────────────────────────────────────────────────────────────────────────
+const normalizeAuditLog = (log: BackendAuditLog): AuditLog => {
+  return {
+    ...log,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
 export default function LogsPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,12 +99,25 @@ export default function LogsPage() {
   const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [deleteAllLoading, setDeleteAllLoading] = useState(false);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Audit Logs from Backend
+  // ───────────────────────────────────────────────────────────────────────────
   const fetchLogs = async () => {
     try {
       setLoading(true);
-      setLogs(mockLogs);
-    } catch (error) {
-      toast.error("Failed to fetch logs");
+      const response = await auditLogsAPI.getAll({ sort: "-createdAt", limit: 100 });
+      const apiResponse = response.data;
+
+      if (apiResponse.success && Array.isArray(apiResponse.data)) {
+        const normalized = apiResponse.data.map(normalizeAuditLog);
+        setLogs(normalized);
+      } else {
+        setLogs([]);
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to fetch audit logs";
+      toast.error(message);
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -174,68 +127,110 @@ export default function LogsPage() {
     fetchLogs();
   }, []);
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Delete Single Log
+  // ───────────────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     try {
       setDeleting(true);
       if (deleteTarget) {
-        setLogs((prev) => prev.filter((log) => log._id !== deleteTarget._id));
+        const response = await auditLogsAPI.delete(deleteTarget._id);
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
+          toast.success("Log deleted successfully");
+          setDeleteTarget(null);
+          fetchLogs();
+        } else {
+          toast.error(apiResponse.message || "Failed to delete log");
+        }
       }
-      toast.success("Log deleted successfully");
-      setDeleteTarget(null);
-    } catch (error) {
-      toast.error("Failed to delete log");
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to delete log";
+      toast.error(message);
+      console.error(error);
     } finally {
       setDeleting(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Bulk Delete (not implemented in API, client-side only for now)
+  // ───────────────────────────────────────────────────────────────────────────
   const handleBulkDelete = async () => {
     try {
       setBulkDeleting(true);
-      setLogs((prev) => prev.filter((log) => !selectedIds.includes(log._id)));
+      // Delete each log individually since API doesn't support bulk delete
+      const deletePromises = selectedIds.map((id) => auditLogsAPI.delete(id));
+      await Promise.all(deletePromises);
+
       toast.success(`${selectedIds.length} logs deleted successfully`);
       setSelectedIds([]);
       setBulkDeleteOpen(false);
-    } catch (error) {
-      toast.error("Failed to delete selected logs");
+      fetchLogs();
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to delete selected logs";
+      toast.error(message);
+      console.error(error);
     } finally {
       setBulkDeleting(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Delete All Logs (Cleanup)
+  // ───────────────────────────────────────────────────────────────────────────
   const handleDeleteAll = async () => {
     try {
       setDeleteAllLoading(true);
-      setLogs([]);
-      toast.success("All logs deleted successfully");
-      setSelectedIds([]);
-      setDeleteAllOpen(false);
-    } catch (error) {
-      toast.error("Failed to delete all logs");
+      const response = await auditLogsAPI.cleanup();
+      const apiResponse = response.data;
+
+      if (apiResponse.success) {
+        toast.success(`All logs deleted successfully (${apiResponse.data.deletedCount} records)`);
+        setSelectedIds([]);
+        setDeleteAllOpen(false);
+        fetchLogs();
+      } else {
+        toast.error(apiResponse.message || "Failed to delete all logs");
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || "Failed to delete all logs";
+      toast.error(message);
+      console.error(error);
     } finally {
       setDeleteAllLoading(false);
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Selection Handlers
+  // ───────────────────────────────────────────────────────────────────────────
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.length === logs.length) {
+    if (selectedIds.length === logs.length && logs.length > 0) {
       setSelectedIds([]);
     } else {
       setSelectedIds(logs.map((log) => log._id));
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Helper Functions
+  // ───────────────────────────────────────────────────────────────────────────
   const getUserInfo = (userId: string | UserInfo): UserInfo | null => {
     if (typeof userId === "string") {
       return null;
     }
-    return userId;
+    return userId || null;
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Table Columns
+  // ───────────────────────────────────────────────────────────────────────────
   const columns = [
     {
       id: "select",
@@ -315,19 +310,25 @@ export default function LogsPage() {
         </div>
       ),
     },
-  ] as ColumnDef<AuditLog, unknown>[];
+  ] as ColumnDef<AuditLog>[];
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Loading State
+  // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <LoadingSpinner />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Render
+  // ───────────────────────────────────────────────────────────────────────────
   return (
     <>
-      <title>CampusHub | System Logs</title>
+      <title>CampusHub | Audit Logs</title>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -346,6 +347,7 @@ export default function LogsPage() {
 
         <DataTable columns={columns} data={logs} searchPlaceholder="Search logs..." />
 
+        {/* View Log Details Dialog */}
         <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -420,6 +422,7 @@ export default function LogsPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Delete Single Log Confirmation */}
         <ConfirmDialog
           isOpen={!!deleteTarget}
           onClose={() => setDeleteTarget(null)}
@@ -430,6 +433,7 @@ export default function LogsPage() {
           loading={deleting}
         />
 
+        {/* Bulk Delete Confirmation */}
         <ConfirmDialog
           isOpen={bulkDeleteOpen}
           onClose={() => setBulkDeleteOpen(false)}
@@ -440,6 +444,7 @@ export default function LogsPage() {
           loading={bulkDeleting}
         />
 
+        {/* Delete All Confirmation */}
         <ConfirmDialog
           isOpen={deleteAllOpen}
           onClose={() => setDeleteAllOpen(false)}
