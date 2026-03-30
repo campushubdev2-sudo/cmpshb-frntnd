@@ -77,6 +77,11 @@ export const orgsAPI = {
   getStats: () => apiClient.get<ApiResponse<OrgStats>>("/orgs/stats"),
 
   /**
+   * Get adviser's own organization
+   */
+  getMyOrg: () => apiClient.get<ApiResponse<Org>>("/orgs/my-org"),
+
+  /**
    * Fetch advisers from users endpoint with role filter
    */
   getAdvisers: () => apiClient.get<ApiResponse<User[]>>("/users", { params: { role: "adviser" } }),

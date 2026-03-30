@@ -23,6 +23,8 @@ import { Select } from "@/components/ui/select";
 import { useAuthentication } from "@/contexts/AuthContext";
 import { usersAPI, type User } from "@/api/users-api";
 import { ROLES } from "@/config/constants/roles";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -342,6 +344,43 @@ const UsersPage = () => {
   // ───────────────────────────────────────────────────────────────────────────
   // Render
   // ───────────────────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-28" />
+        </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Skeleton className="h-9 w-64" />
+            </div>
+            <div className="space-y-2">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-10 w-48" />
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-10 w-28" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-16" />
+                    <Skeleton className="h-9 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <>
       <title>CampusHub | User Management</title>

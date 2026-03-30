@@ -1,8 +1,8 @@
-import { Navigate, useLocation } from "react-router";
+import { Navigate } from "react-router";
 import { useEffect, useState, type ReactNode, type ReactElement } from "react";
 import { useAuthentication } from "../contexts/AuthContext";
 import { authApi } from "../api/auth-api";
-import LoadingSpinner from "../components/shared/LoadingSpinner";
+import { Skeleton } from "../components/ui/skeleton";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -14,7 +14,6 @@ export default function ProtectedRoute({
   allowedRoles,
 }: ProtectedRouteProps): ReactElement | null {
   const { isAuthenticated, authenticatedUser, logout } = useAuthentication();
-  const location = useLocation();
   const [verifying, setVerifying] = useState<boolean>(true);
   const [tokenExpired, setTokenExpired] = useState<boolean>(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -41,7 +40,7 @@ export default function ProtectedRoute({
       .catch((error: any) => {
         const status = error.response?.status;
         const message: string = error.response?.data?.message || "";
-        
+
         console.log("[ProtectedRoute] Profile fetch failed:", { status, message });
         setProfileError(message);
 
@@ -57,7 +56,14 @@ export default function ProtectedRoute({
   }, [isAuthenticated, allowedRoles, logout]);
 
   if (verifying) {
-    return <LoadingSpinner />;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="space-y-4 text-center">
+          <Skeleton className="mx-auto h-12 w-12 rounded-full" />
+          <Skeleton className="mx-auto h-4 w-32" />
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated || tokenExpired) {

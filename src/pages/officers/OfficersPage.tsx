@@ -6,8 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 import { format } from "date-fns";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { Plus } from "lucide-react";
+import { Plus, Users, Calendar, Briefcase } from "lucide-react";
 import DataTable from "@/components/shared/DataTable";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,18 +18,15 @@ import { orgsAPI, type Org } from "@/api/orgs-api";
 import { usersAPI, type User } from "@/api/users-api";
 import { ROLES } from "@/config/constants/roles";
 import apiClient from "@/api/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
 interface OfficerPosition {
   positionValue: string;
   positionLabel: string;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Validation Schemas
-// ─────────────────────────────────────────────────────────────────────────────
 const createOfficerSchema = z.object({
   userId: z.string().min(1, "User is required"),
   orgId: z.string().min(1, "Organization is required"),
@@ -45,15 +41,9 @@ const editOfficerSchema = z.object({
   endTerm: z.string().min(1, "Term end is required"),
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
 type CreateOfficerFormData = z.infer<typeof createOfficerSchema>;
 type EditOfficerFormData = z.infer<typeof editOfficerSchema>;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Component
-// ─────────────────────────────────────────────────────────────────────────────
 const OfficersPage = () => {
   const { authenticatedUser } = useAuthentication();
   const [officers, setOfficers] = useState<Officer[]>([]);
@@ -67,15 +57,21 @@ const OfficersPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // For adviser/officer - their organization
+  const [myOrg, setMyOrg] = useState<{ _id: string; orgName: string } | null>(null);
+  const [myOrgLoading, setMyOrgLoading] = useState(false);
+  const [myOrgError, setMyOrgError] = useState<string | null>(null);
+
+  // For adviser - their organization's officers
+  const [myOrgOfficers, setMyOrgOfficers] = useState<Officer[]>([]);
+  const [myOrgOfficersLoading, setMyOrgOfficersLoading] = useState(false);
+
   const isEditing = !!editingOfficer;
   const isAdmin = authenticatedUser?.role === ROLES.ADMIN;
   const isAdviser = authenticatedUser?.role === ROLES.ADVISER;
   const isOfficer = authenticatedUser?.role === ROLES.OFFICER;
   const canManage = isAdmin || isAdviser;
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // RBAC: Derive user's org IDs for filtering
-  // ───────────────────────────────────────────────────────────────────────────
   const userOrgIds = useMemo(() => {
     if (isAdmin) return null;
 
@@ -104,9 +100,6 @@ const OfficersPage = () => {
     return [];
   }, [isAdmin, isAdviser, isOfficer, allOrgs, officers, authenticatedUser]);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // RBAC: Filter officers based on role
-  // ───────────────────────────────────────────────────────────────────────────
   const filteredOfficers = useMemo(() => {
     if (isAdmin || !userOrgIds) return officers;
     return officers.filter((off) => {
@@ -115,9 +108,6 @@ const OfficersPage = () => {
     });
   }, [officers, userOrgIds, isAdmin]);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // RBAC: Filter org options for dropdown
-  // ───────────────────────────────────────────────────────────────────────────
   const orgOptions = useMemo(() => {
     const mapped = allOrgs.map((o) => ({
       value: o._id?.toString(),
@@ -143,9 +133,6 @@ const OfficersPage = () => {
     resolver: zodResolver(isEditing ? editOfficerSchema : createOfficerSchema),
   });
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Fetch Officers from Backend
-  // ───────────────────────────────────────────────────────────────────────────
   const fetchOfficers = async () => {
     try {
       setLoading(true);
@@ -175,13 +162,10 @@ const OfficersPage = () => {
     }
   };
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Fetch Dropdown Data (Users, Organizations & Positions)
-  // ───────────────────────────────────────────────────────────────────────────
   const fetchDropdownData = async () => {
     try {
       const [usersRes, orgsRes, positionsRes] = await Promise.all([
-        usersAPI.getAll({ limit: 100 }),
+        usersAPI.getAll({ limit: 100, role: "officer" }),
         orgsAPI.getAll({ limit: 100 }),
         apiClient.get("/officers/meta/positions"),
       ]);
@@ -216,6 +200,58 @@ const OfficersPage = () => {
           label: p.positionLabel,
         })),
       );
+
+      // Fetch adviser's/officer's organization
+      if (isAdviser || isOfficer) {
+        setMyOrgLoading(true);
+        setMyOrgError(null);
+        try {
+          const myOrgRes = await orgsAPI.getMyOrg();
+          const myOrgData = myOrgRes.data;
+
+          // Handle various response scenarios
+          if (!myOrgData) {
+            throw new Error("Empty response from server");
+          }
+
+          if (!myOrgData.success) {
+            throw new Error(myOrgData.message || "Failed to fetch organization");
+          }
+
+          if (!myOrgData.data || !myOrgData.data._id || !myOrgData.data.orgName) {
+            throw new Error("Invalid organization data received");
+          }
+
+          const orgId = myOrgData.data._id;
+          const orgName = myOrgData.data.orgName;
+
+          setMyOrg({
+            _id: orgId,
+            orgName: orgName,
+          });
+
+          // Fetch officers for this organization
+          setMyOrgOfficersLoading(true);
+          const officersRes = await officersAPI.getByOrgId(orgId);
+          const officersData = officersRes.data;
+
+          if (officersData.success && officersData.data) {
+            setMyOrgOfficers(officersData.data.officers || []);
+          } else {
+            setMyOrgOfficers([]);
+          }
+        } catch (error: any) {
+          console.error("Failed to fetch organization:", error);
+          const errorMessage =
+            error?.response?.data?.message || error?.message || "Failed to load your organization";
+          setMyOrgError(errorMessage);
+          setMyOrg(null);
+          setMyOrgOfficers([]);
+        } finally {
+          setMyOrgLoading(false);
+          setMyOrgOfficersLoading(false);
+        }
+      }
     } catch (error) {
       console.error("Failed to fetch dropdown data:", error);
       toast.error("Failed to load users, organizations, or positions");
@@ -227,18 +263,31 @@ const OfficersPage = () => {
     fetchDropdownData();
   }, []);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Modal Handlers
-  // ───────────────────────────────────────────────────────────────────────────
   const openCreateModal = () => {
     if (!canManage) {
       toast.error("You don't have permission to add officers");
       return;
     }
+
+    if ((isAdviser || isOfficer) && !myOrg) {
+      if (myOrgLoading) {
+        toast.error("Please wait, loading your organization...");
+        return;
+      }
+      if (myOrgError) {
+        toast.error(
+          myOrgError || "Unable to load your organization. Please refresh the page.",
+        );
+        return;
+      }
+      toast.error("You are not assigned to any organization. Contact admin.");
+      return;
+    }
+
     setEditingOfficer(null);
     reset({
       userId: "",
-      orgId: "",
+      orgId: (isAdviser || isOfficer) && myOrg ? myOrg._id : "",
       position: "",
       startTerm: "",
       endTerm: "",
@@ -276,9 +325,6 @@ const OfficersPage = () => {
     reset();
   };
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // CRUD Operations
-  // ───────────────────────────────────────────────────────────────────────────
   const onSubmit = async (data: CreateOfficerFormData | EditOfficerFormData) => {
     if (!canManage) {
       toast.error("You don't have permission to manage officers");
@@ -349,7 +395,8 @@ const OfficersPage = () => {
         toast.error(apiResponse.message || "Failed to delete officer");
       }
     } catch (error: any) {
-      const message = error?.response?.data?.message || error?.message || "Failed to delete officer";
+      const message =
+        error?.response?.data?.message || error?.message || "Failed to delete officer";
       toast.error(message);
       console.error("Delete officer error:", error);
     } finally {
@@ -358,9 +405,6 @@ const OfficersPage = () => {
     }
   };
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Table Columns
-  // ───────────────────────────────────────────────────────────────────────────
   const columns = [
     {
       header: "User",
@@ -417,20 +461,296 @@ const OfficersPage = () => {
       : []),
   ];
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Loading State
-  // ───────────────────────────────────────────────────────────────────────────
-  if (loading) {
+  if (loading || ((isAdviser || isOfficer) && myOrgOfficersLoading)) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Skeleton className="h-9 w-64" />
+            </div>
+            <div className="space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-10 w-40" />
+                  <Skeleton className="h-10 w-28" />
+                  <Skeleton className="h-10 w-28" />
+                  <Skeleton className="h-10 w-28" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-16" />
+                    <Skeleton className="h-9 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Render
-  // ───────────────────────────────────────────────────────────────────────────
+  if (isAdviser || isOfficer) {
+    if (myOrgError) {
+      return (
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <p className="text-destructive text-lg font-medium">{myOrgError}</p>
+            <p className="text-muted-foreground text-sm mt-2">
+              Please contact your administrator or refresh the page.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (!myOrg) {
+      return (
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <p className="text-muted-foreground text-lg">No organization assigned</p>
+            <p className="text-muted-foreground text-sm mt-2">
+              {isOfficer 
+                ? "You are not registered as an officer. Please contact your organization adviser or administrator."
+                : "You are not assigned as an adviser. Please contact your administrator."}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">{myOrg.orgName}</h1>
+            <p className="text-muted-foreground mt-1">Your organization's officers</p>
+          </div>
+          {canManage && (
+            <Button onClick={openCreateModal}>
+              <div className="flex items-center justify-center">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Officer
+              </div>
+            </Button>
+          )}
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="text-blue-600 bg-blue-50 flex h-11 w-11 items-center justify-center rounded-lg">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Total Officers</p>
+                <p className="text-foreground text-xl font-bold">{myOrgOfficers.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="text-violet-600 bg-violet-50 flex h-11 w-11 items-center justify-center rounded-lg">
+                <Briefcase className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Organization</p>
+                <p className="text-foreground text-xl font-bold">{myOrg.orgName}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="text-emerald-600 bg-emerald-50 flex h-11 w-11 items-center justify-center rounded-lg">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Active Term</p>
+                <p className="text-foreground text-xl font-bold">
+                  {
+                    myOrgOfficers.filter((off) => {
+                      const now = new Date();
+                      const start = off.startTerm ? new Date(off.startTerm) : null;
+                      const end = off.endTerm ? new Date(off.endTerm) : null;
+                      return (!start || now >= start) && (!end || now <= end);
+                    }).length
+                  }
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Officers List */}
+        <Card>
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Officers</h2>
+            {myOrgOfficers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Users className="h-12 w-12 text-muted-foreground/40 mb-4" />
+                <p className="text-muted-foreground font-medium">No officers found</p>
+                <p className="text-muted-foreground text-sm mt-1">
+                  {canManage ? "Add your first officer to get started" : "Your organization has no officers"}
+                </p>
+                {canManage && (
+                  <Button onClick={openCreateModal} className="mt-4" size="sm">
+                    <Plus className="h-4 w-4 mr-2 inline-flex" />
+                    Add Officer
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {myOrgOfficers.map((officer) => {
+                  const now = new Date();
+                  const start = officer.startTerm ? new Date(officer.startTerm) : null;
+                  const end = officer.endTerm ? new Date(officer.endTerm) : null;
+                  const isActive = (!start || now >= start) && (!end || now <= end);
+
+                  return (
+                    <div
+                      key={officer._id}
+                      className="bg-muted flex items-center justify-between rounded-lg px-4 py-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="bg-background flex h-10 w-10 items-center justify-center rounded-full border">
+                          <Users className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {officer.userId?.username || officer.userId?.firstName || "Unknown"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant={isActive ? "default" : "secondary"} className="text-xs">
+                              {officer.position || "Officer"}
+                            </Badge>
+                            <span className="text-muted-foreground text-xs">
+                              {officer.userId?.email || ""}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-muted-foreground text-xs">
+                          {officer.startTerm && officer.endTerm
+                            ? `${format(new Date(officer.startTerm), "MMM yyyy")} - ${format(new Date(officer.endTerm), "MMM yyyy")}`
+                            : "No term specified"}
+                        </p>
+                        <Badge variant={isActive ? "outline" : "outline"} className="text-xs mt-1">
+                          {isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Create/Edit Officer Modal - Admin/Adviser only */}
+        {canManage && (
+          <Modal
+            isOpen={modalOpen}
+            onClose={closeModal}
+            title={isEditing ? "Edit Officer" : "Add Officer"}
+            size="lg"
+          >
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <Select
+                label="User"
+                options={userOptions}
+                placeholder="Select a user"
+                {...register("userId")}
+                error={errors.userId?.message}
+                disabled={isEditing}
+              />
+              <div className="space-y-2">
+                <Label htmlFor="orgId">Organization</Label>
+                {(isAdviser || isOfficer) && myOrgLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                ) : (isAdviser || isOfficer) && myOrgError ? (
+                  <div className="text-destructive text-sm">
+                    <p>{myOrgError}</p>
+                    <p className="text-xs mt-1">Cannot add officers without an organization</p>
+                  </div>
+                ) : (isAdviser || isOfficer) && myOrg ? (
+                  <div className="space-y-1">
+                    <Input
+                      id="orgId"
+                      value={myOrg.orgName}
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Organization is locked to your assigned organization
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <Select
+                      id="orgId"
+                      options={orgOptions}
+                      placeholder="Select an organization"
+                      {...register("orgId")}
+                      error={errors.orgId?.message}
+                      disabled={isEditing}
+                    />
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground">
+                        Organization cannot be changed when editing
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+              <Select
+                label="Position"
+                options={positionOptions}
+                placeholder="Select a position"
+                {...register("position")}
+                error={errors.position?.message}
+              />
+              <div className="space-y-2">
+                <Label htmlFor="startTerm">Term Start</Label>
+                <Input id="startTerm" type="date" {...register("startTerm")} />
+                {errors.startTerm && (
+                  <p className="text-sm text-destructive">{errors.startTerm.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTerm">Term End</Label>
+                <Input id="endTerm" type="date" {...register("endTerm")} />
+                {errors.endTerm && (
+                  <p className="text-sm text-destructive">{errors.endTerm.message}</p>
+                )}
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" type="button" onClick={closeModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" loading={submitting}>
+                  {isEditing ? "Update" : "Create"}
+                </Button>
+              </div>
+            </form>
+          </Modal>
+        )}
+      </div>
+    );
+  }
+
   return (
     <>
       <title>CampusHub | Officer Management</title>
@@ -461,6 +781,7 @@ const OfficersPage = () => {
         {/* Create/Edit Officer Modal */}
         {canManage && (
           <Modal
+            size="lg"
             isOpen={modalOpen}
             onClose={closeModal}
             title={isEditing ? "Edit Officer" : "Add Officer"}
@@ -474,14 +795,47 @@ const OfficersPage = () => {
                 error={errors.userId?.message}
                 disabled={isEditing}
               />
-              <Select
-                label="Organization"
-                options={orgOptions}
-                placeholder="Select an organization"
-                {...register("orgId")}
-                error={errors.orgId?.message}
-                disabled={isEditing}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="orgId">Organization</Label>
+                {isAdviser && adviserOrgLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                ) : isAdviser && adviserOrgError ? (
+                  <div className="text-destructive text-sm">
+                    <p>{adviserOrgError}</p>
+                    <p className="text-xs mt-1">Cannot add officers without an organization</p>
+                  </div>
+                ) : isAdviser && adviserOrg ? (
+                  <div className="space-y-1">
+                    <Input
+                      id="orgId"
+                      value={adviserOrg.orgName}
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Organization is locked to your assigned organization
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <Select
+                      id="orgId"
+                      options={orgOptions}
+                      placeholder="Select an organization"
+                      {...register("orgId")}
+                      error={errors.orgId?.message}
+                      disabled={isEditing}
+                    />
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground">
+                        Organization cannot be changed when editing
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
               <Select
                 label="Position"
                 options={positionOptions}

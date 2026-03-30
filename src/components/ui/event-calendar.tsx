@@ -77,9 +77,10 @@ interface CalendarSectionProps {
   events: CampusEventDTO[];
   onEventSave?: (event: any) => void | Promise<void>;
   onEventDelete?: (eventId: string) => void | Promise<void>;
+  onDateChange?: (date: Date) => void;
 }
 
-export const CalendarSection = ({ isAdmin, events, onEventSave, onEventDelete }: CalendarSectionProps) => {
+export const CalendarSection = ({ isAdmin, events, onEventSave, onEventDelete, onDateChange }: CalendarSectionProps) => {
   return (
     <div className="bg-background flex-1 overflow-hidden rounded border shadow-md">
       <IlamyCalendar
@@ -92,6 +93,7 @@ export const CalendarSection = ({ isAdmin, events, onEventSave, onEventDelete }:
         disableDragAndDrop={!isAdmin}
         onEventSave={onEventSave}
         onEventDelete={onEventDelete}
+        onDateChange={(date) => onDateChange?.(date.toDate())}
         classesOverride={{
           disabledCell: "bg-gray-50 dark:bg-slate-800/50 opacity-30 cursor-not-allowed",
         }}

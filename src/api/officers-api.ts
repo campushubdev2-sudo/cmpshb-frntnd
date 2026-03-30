@@ -75,4 +75,11 @@ export const officersAPI = {
    */
   getStats: () =>
     apiClient.get<ApiResponse<OfficerStats>>("/officers/stats/overview"),
+
+  /**
+   * Get officers by organization ID
+   * Returns organization info and its officers
+   */
+  getByOrgId: (orgId: string) =>
+    apiClient.get<ApiResponse<{ organization: { id: string; name: string }; count: number; officers: Officer[] }>>(`/officers/by-org/${orgId}`),
 };

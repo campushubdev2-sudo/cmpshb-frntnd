@@ -27,5 +27,5 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Notes and Qwen settings (local only)
-notes/
+# notes/
 .qwen/

@@ -12,6 +12,7 @@ import { Button } from "../../components/ui/button";
 import AnimatedGridPattern from "../../components/ui/animated-grid-pattern";
 import CardNav from "../../components/CardNav";
 import { useSchoolEvents } from "../../hooks/useSchoolEvents";
+import { Skeleton } from "../../components/ui/skeleton";
 import dayjs from "dayjs";
 
 const PLATFORM_FEATURES_DATA = [
@@ -69,7 +70,7 @@ const NAVIGATION_SCHEMA = [
 ];
 
 const CalendarModule = () => {
-  const { schoolEvents } = useSchoolEvents();
+  const { schoolEvents, loading } = useSchoolEvents();
 
   return (
     <section className="grid grid-cols-1 gap-4 p-4" id="calendar">
@@ -86,7 +87,19 @@ const CalendarModule = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground flex flex-col overflow-y-scroll py-8">
-            {schoolEvents.length === 0 ? (
+            {loading ? (
+              <div className="flex flex-col gap-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-14 w-14 rounded-md" />
+                    <div className="flex flex-1 items-center gap-2">
+                      <Skeleton className="h-2 w-2 rounded-full" />
+                      <Skeleton className="h-4 w-32" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : schoolEvents.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center">
                 <Calendar className="mb-2 size-10 opacity-60" />
                 <p className="text-sm">No events this month</p>

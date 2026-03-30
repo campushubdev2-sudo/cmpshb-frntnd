@@ -1,4 +1,3 @@
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useEffect, useState, useCallback } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useAuthentication } from "@/contexts/AuthContext";
@@ -20,6 +19,8 @@ import { Button } from "@/components/ui/button";
 import { userService } from "@/services/user-service";
 import { eventService } from "@/services/event-service";
 import { logsService } from "@/services/logs-service";
+import { Skeleton } from "@/components/ui/skeleton";
+import AccessDenied from "@/components/shared/AccessDenied";
 
 // G25: Semantic Constants
 const DATE_FORMAT_FULL = "EEEE, MMMM d, yyyy";
@@ -100,6 +101,11 @@ const DashboardPage = () => {
   const isOfficer = authenticatedUser?.role === "officer";
   const isAdviser = authenticatedUser?.role === "adviser";
 
+  // Show access denied for advisers and officers
+  if (!isAdmin && (isAdviser || isOfficer)) {
+    return <AccessDenied />;
+  }
+
   // Logical groupings for permissions
   const canViewEventStats = isAdmin || isOfficer || isAdviser;
 
@@ -145,8 +151,119 @@ const DashboardPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner />
+      <div className="space-y-8">
+        <header className="space-y-1">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-48" />
+        </header>
+
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-10 w-10 rounded-lg" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-10 w-10 rounded-lg" />
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        {isAdmin && (
+          <nav aria-label="Quick Actions" className="space-y-3">
+            <Skeleton className="h-6 w-32" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="flex items-center gap-3 py-4">
+                    <Skeleton className="h-9 w-9 rounded-lg" />
+                    <Skeleton className="h-4 w-20" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </nav>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <main className={isAdmin ? "lg:col-span-2 space-y-4" : "lg:col-span-3 space-y-4"}>
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-8 w-24" />
+            </div>
+            <Card>
+              <CardContent className="p-0">
+                <div className="divide-y divide-border">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex items-center gap-4 px-5 py-4">
+                      <Skeleton className="h-11 w-11 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <div className="flex gap-2">
+                          <Skeleton className="h-3 w-24" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                      </div>
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </main>
+
+          {isAdmin && (
+            <aside className="space-y-6">
+              <Skeleton className="h-6 w-32" />
+              <Card>
+                <CardContent className="py-4">
+                  <div className="space-y-4">
+                    {[...Array(6)].map((_, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <Skeleton className="h-2 w-2 rounded-full mt-1.5" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-full" />
+                          <div className="flex gap-2">
+                            <Skeleton className="h-3 w-20" />
+                            <Skeleton className="h-3 w-16" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="py-4 space-y-3">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-4 w-8" />
+                      </div>
+                      <Skeleton className="h-2 rounded-full w-full" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </aside>
+          )}
+        </div>
       </div>
     );
   }

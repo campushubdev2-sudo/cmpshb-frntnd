@@ -16,7 +16,7 @@ export const NAV_ITEMS = [
     label: "Dashboard",
     path: "/dashboard",
     icon: LayoutDashboard,
-    roles: [ROLES.ADMIN, ROLES.ADVISER, ROLES.OFFICER],
+    roles: [ROLES.ADMIN],
   },
   {
     label: "Users",

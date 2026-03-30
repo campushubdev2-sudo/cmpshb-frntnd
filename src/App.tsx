@@ -1,126 +1,133 @@
 import { Routes, Route, Navigate } from "react-router";
+import { lazy, Suspense } from "react";
+
+// Layout & Route Guards (Keep these eager as they are structural)
 import ProtectedRoute from "./routes/ProtectedRoutes";
 import MainLayout from "./components/layout/MainLayout";
 
-// Auth pages
-import LoginPage from "./pages/auth/LoginPage";
-import RegisterPage from "./pages/auth/RegisterPage";
-import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+// --- Lazy Loaded Pages ---
 
-// Landing page
-import LandingPage from "./pages/landing/LandingPage";
+// Auth
+const LoginPage = lazy(() => import("./pages/auth/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/auth/RegisterPage"));
 
-// Main pages
-import DashboardPage from "./pages/dashboard/DashboardPage";
-import UsersPage from "./pages/users/UsersPage";
-import OrganizationsPage from "./pages/organizations/OrganizationsPage";
-import OrganizationDetailPage from "./pages/organizations/OrganizationDetailPage";
-import EventsPage from "./pages/events/EventsPage";
-import EventDetailPage from "./pages/events/EventDetailPage";
-import OfficersPage from "./pages/officers/OfficersPage";
-import CalendarPage from "./pages/calendar/CalendarPage";
-import ReportsPage from "./pages/reports/ReportsPage";
-import ReportDetailPage from "./pages/reports/ReportDetailPage";
-import NotificationsPage from "./pages/notifications/NotificationsPage";
-import LogsPage from "./pages/logs-page/LogsPage.tsx";
+// Landing
+const LandingPage = lazy(() => import("./pages/landing/LandingPage"));
+
+// Main
+const DashboardPage = lazy(() => import("./pages/dashboard/DashboardPage"));
+const UsersPage = lazy(() => import("./pages/users/UsersPage"));
+const OrganizationsPage = lazy(() => import("./pages/organizations/OrganizationsPage"));
+const OrganizationDetailPage = lazy(() => import("./pages/organizations/OrganizationDetailPage"));
+const EventsPage = lazy(() => import("./pages/events/EventsPage"));
+const EventDetailPage = lazy(() => import("./pages/events/EventDetailPage"));
+const OfficersPage = lazy(() => import("./pages/officers/OfficersPage"));
+const CalendarPage = lazy(() => import("./pages/calendar/CalendarPage"));
+const ReportsPage = lazy(() => import("./pages/reports/ReportsPage"));
+const ReportDetailPage = lazy(() => import("./pages/reports/ReportDetailPage"));
+const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
+const LogsPage = lazy(() => import("./pages/logs-page/LogsPage"));
 
 const App = () => {
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      {/* <Route path="/forgot-password" element={<ForgotPasswordPage />} /> */}
+    <Suspense
+      fallback={<div className="flex h-screen items-center justify-center">Loading...</div>}
+    >
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-      {/* Protected routes */}
-      <Route
-        element={
-          <ProtectedRoute>
-            <MainLayout />
-          </ProtectedRoute>
-        }
-      >
+        {/* Protected routes */}
         <Route
-          path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={["admin", "officer", "adviser"]}>
-              <DashboardPage />
+            <ProtectedRoute>
+              <MainLayout />
             </ProtectedRoute>
           }
-        />
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <UsersPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/organizations"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
-              <OrganizationsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/organizations/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
-              <OrganizationDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/events" element={<EventsPage />} />
-        <Route path="/events/:id" element={<EventDetailPage />} />
-        <Route
-          path="/officers"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
-              <OfficersPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route
-          path="/reports"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
-              <ReportsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
-              <ReportDetailPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/notifications"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
-              <NotificationsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/logs"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <LogsPage />
-            </ProtectedRoute>
-          }
-        />
-      </Route>
+        >
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
+                <OrganizationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
+                <OrganizationDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/events/:id" element={<EventDetailPage />} />
+          <Route
+            path="/officers"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
+                <OfficersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
+                <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/:id"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
+                <ReportDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute allowedRoles={["admin", "adviser", "officer"]}>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/logs"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <LogsPage />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
 
-      {/* Landing page */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="*" element={<Navigate to="/calendar" replace />} />
-    </Routes>
+        {/* Landing page */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="*" element={<Navigate to="/calendar" replace />} />
+      </Routes>
+    </Suspense>
   );
 };
 

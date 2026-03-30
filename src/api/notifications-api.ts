@@ -69,6 +69,7 @@ export interface CreateNotificationPayload {
   eventId: string;
   recipientId: string;
   message: string;
+  senderId?: string;
   status?: NotificationStatus;
 }
 
@@ -77,6 +78,7 @@ export interface CreateBulkNotificationsPayload {
   eventId: string;
   recipientIds: string[];
   message: string;
+  senderId?: string;
   status?: NotificationStatus;
 }
 

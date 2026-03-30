@@ -216,7 +216,7 @@ const CardNav: React.FC<CardNavProps> = ({
           <div className="flex h-10 items-center rounded-[calc(0.75rem-0.35rem)] px-4 font-medium transition-colors duration-300 hover:brightness-125 md:flex">
             <Button
               type="button"
-              className="mr-2 cursor-pointer"
+              className="hidden mr-2 cursor-pointer sm:inline-flex"
               variant="outline"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             >

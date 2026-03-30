@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { orgsAPI, type Org } from "@/api/orgs-api";
 import { officersAPI, type Officer } from "@/api/officers-api";
 import { reportsAPI, type Report } from "@/api/reports-api";
@@ -142,8 +142,70 @@ export default function OrganizationDetailPage() {
   // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="rounded-xl border p-5">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-11 w-11 rounded-lg" />
+                <div className="space-y-2">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-6 w-16" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl border p-6">
+          <Skeleton className="mb-4 h-6 w-48" />
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="space-y-1">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border p-6">
+          <Skeleton className="mb-4 h-6 w-24" />
+          <div className="space-y-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border p-6">
+          <Skeleton className="mb-4 h-6 w-32" />
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between rounded-lg bg-muted px-4 py-3">
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-5 w-20 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

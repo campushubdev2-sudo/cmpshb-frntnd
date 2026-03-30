@@ -16,11 +16,11 @@ import { Button } from "@/components/ui/button";
 import Modal from "@/components/ui/Modal";
 import DataTable from "@/components/shared/DataTable";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useAuthentication } from "@/contexts/AuthContext";
 import { Link } from "react-router";
 import { reportsAPI, type Report as BackendReport } from "@/api/reports-api";
 import { orgsAPI, type Org } from "@/api/orgs-api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -126,6 +126,7 @@ export default function ReportsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [editStatus, setEditStatus] = useState("");
   const [editMessage, setEditMessage] = useState("");
+  const [userOrgId, setUserOrgId] = useState<string | null>(null);
 
   const isEditing = !!editingReport;
 
@@ -133,6 +134,7 @@ export default function ReportsPage() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(reportSchema),
@@ -183,6 +185,22 @@ export default function ReportsPage() {
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch User's Organization
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchUserOrg = async () => {
+    try {
+      const response = await orgsAPI.getMyOrg();
+      const apiResponse = response.data;
+
+      if (apiResponse.success && apiResponse.data?._id) {
+        setUserOrgId(apiResponse.data._id);
+      }
+    } catch (error: unknown) {
+      console.error("Failed to fetch user organization:", error);
+    }
+  };
+
   useEffect(() => {
     fetchReports();
   }, [statusFilter, typeFilter]);
@@ -191,12 +209,23 @@ export default function ReportsPage() {
     fetchOrgs();
   }, []);
 
+  useEffect(() => {
+    fetchUserOrg();
+  }, []);
+
+  // Set orgId when userOrgId is fetched and modal is open for creation
+  useEffect(() => {
+    if (userOrgId && !isEditing && modalOpen) {
+      setValue("orgId", userOrgId);
+    }
+  }, [userOrgId, isEditing, modalOpen, setValue]);
+
   // ───────────────────────────────────────────────────────────────────────────
   // Modal Handlers
   // ───────────────────────────────────────────────────────────────────────────
   const openCreateModal = () => {
     setEditingReport(null);
-    reset({ orgId: "", reportType: "" });
+    reset({ orgId: userOrgId || "", reportType: "" });
     setFiles([]);
     setModalOpen(true);
   };
@@ -399,8 +428,43 @@ export default function ReportsPage() {
   // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+
+        <div className="flex flex-wrap gap-4">
+          <Skeleton className="h-9 w-48 rounded-md" />
+          <Skeleton className="h-9 w-48 rounded-md" />
+        </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Skeleton className="h-9 w-64" />
+            </div>
+            <div className="space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-40" />
+                  <Skeleton className="h-10 w-28" />
+                  <Skeleton className="h-8 w-24 rounded-md" />
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-10 w-28" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-16" />
+                    <Skeleton className="h-9 w-16" />
+                    <Skeleton className="h-9 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -459,7 +523,12 @@ export default function ReportsPage() {
         <DataTable columns={columns} data={reports} searchPlaceholder="Search reports..." />
 
         {/* Create Report Modal */}
-        <Modal isOpen={modalOpen && !isEditing} onClose={closeModal} title="Submit New Report">
+        <Modal
+          size="xl"
+          isOpen={modalOpen && !isEditing}
+          onClose={closeModal}
+          title="Submit New Report"
+        >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="orgId">Organization</Label>
@@ -467,6 +536,7 @@ export default function ReportsPage() {
                 id="orgId"
                 options={orgs}
                 placeholder="Select an organization"
+                disabled
                 {...register("orgId")}
               />
               {errors.orgId && (
@@ -543,7 +613,12 @@ export default function ReportsPage() {
         </Modal>
 
         {/* Edit Status Modal */}
-        <Modal isOpen={modalOpen && isEditing} onClose={closeModal} title="Update Report Status">
+        <Modal
+          size="xl"
+          isOpen={modalOpen && isEditing}
+          onClose={closeModal}
+          title="Update Report Status"
+        >
           <form onSubmit={onEditStatusSubmit} className="space-y-4">
             <div className="text-muted-foreground border-border space-y-1 border-b pb-2 text-sm">
               <p>

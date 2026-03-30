@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Download, CheckCircle, XCircle, FileText, Eye } from "lucide-react";
+import { ArrowLeft, Download, CheckCircle, XCircle, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import mammoth from "mammoth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthentication } from "@/contexts/AuthContext";
 import { reportsAPI, type Report as BackendReport } from "@/api/reports-api";
 
@@ -70,7 +71,7 @@ const getFileExtension = (filePath: string): string => {
 // ─────────────────────────────────────────────────────────────────────────────
 const isViewableFile = (filePath: string): boolean => {
   const ext = getFileExtension(filePath);
-  return ["pdf", "jpg", "jpeg", "png", "gif", "webp"].includes(ext);
+  return ["pdf", "jpg", "jpeg", "png", "gif", "webp", "docx"].includes(ext);
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,16 +94,16 @@ const buildFileUrl = (filePath: string): string => {
   // API base URL is for API endpoints like /api/v1/reports
   // Static files (uploads) are served at the root level, not under /api/v1
   const apiBaseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
-  
+
   // Get the server root URL by removing /api/v1 or /api from the base URL
   // e.g., "http://localhost:5000/api" -> "http://localhost:5000"
   // e.g., "http://localhost:5000/api/v1" -> "http://localhost:5000"
   // e.g., "https://cmpshb-bcknd.onrender.com/api/v1" -> "https://cmpshb-bcknd.onrender.com"
   const serverRoot = apiBaseURL.replace(/\/api(\/v1)?$/i, "");
-  
+
   // Remove leading slashes from file path to avoid double slashes
   const cleanPath = filePath.replace(/^\/+/, "");
-  
+
   return `${serverRoot}/${cleanPath}`;
 };
 
@@ -163,13 +164,13 @@ export default function ReportDetailPage() {
     try {
       setDownloading(true);
       const response = await reportsAPI.download(id);
-      
+
       // Create blob and download
       const blob = new Blob([response.data], { type: response.headers["content-type"] });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      
+
       // Get filename from Content-Disposition header or use default
       const contentDisposition = response.headers["content-disposition"];
       let filename = `${report.reportType}-report`;
@@ -179,13 +180,13 @@ export default function ReportDetailPage() {
           filename = match[1];
         }
       }
-      
+
       link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success("Download started");
     } catch (error: any) {
       const message = error?.response?.data?.message || "Failed to download files";
@@ -227,8 +228,54 @@ export default function ReportDetailPage() {
   // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-3 w-24" />
+                  <Skeleton className="h-5 w-32" />
+                </div>
+              ))}
+            </div>
+            <div className="border-border mt-6 flex gap-3 pt-6 border-t">
+              <Skeleton className="h-10 flex-1 rounded-md" />
+              <Skeleton className="h-10 flex-1 rounded-md" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-48" />
+              </div>
+              <Skeleton className="h-9 w-32 rounded-md" />
+            </div>
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 rounded-md border bg-muted px-4 py-3"
+                >
+                  <Skeleton className="h-8 w-8 rounded" />
+                  <Skeleton className="h-4 w-48" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -242,7 +289,8 @@ export default function ReportDetailPage() {
   }
 
   const orgName = typeof report.orgId === "object" ? report.orgId.orgName : "—";
-  const submittedByUsername = typeof report.submittedBy === "object" ? report.submittedBy.username : "—";
+  const submittedByUsername =
+    typeof report.submittedBy === "object" ? report.submittedBy.username : "—";
   const hasFiles = report.filePaths.length > 0;
   const selectedFile = report.filePaths[selectedFileIndex];
 
@@ -315,7 +363,7 @@ export default function ReportDetailPage() {
                   disabled={updating}
                   className="flex-1 md:flex-none"
                 >
-                  <CheckCircle className="mr-2 h-4 w-4" />
+                  <CheckCircle className="mr-2 h-4 w-4 inline-flex" />
                   Approve
                 </Button>
                 <Button
@@ -325,7 +373,7 @@ export default function ReportDetailPage() {
                   disabled={updating}
                   className="flex-1 md:flex-none"
                 >
-                  <XCircle className="mr-2 h-4 w-4" />
+                  <XCircle className="mr-2 h-4 w-4 inline-flex" />
                   Reject
                 </Button>
               </div>
@@ -353,7 +401,7 @@ export default function ReportDetailPage() {
                   disabled={downloading}
                   size="sm"
                 >
-                  <Download className="mr-2 h-4 w-4" />
+                  <Download className="mr-2 h-4 w-4 inline-flex" />
                   Download {report.filePaths.length > 1 ? "All (ZIP)" : "File"}
                 </Button>
               )}
@@ -487,9 +535,7 @@ export default function ReportDetailPage() {
                             <p
                               className={cn(
                                 "font-medium",
-                                index === selectedFileIndex
-                                  ? "text-primary"
-                                  : "text-foreground",
+                                index === selectedFileIndex ? "text-primary" : "text-foreground",
                               )}
                             >
                               {fileName}
@@ -534,7 +580,10 @@ function FilePreviewSection({ filePath, index, onIframeError, reportId }: FilePr
   const fileName = filePath.split("/").pop() || "Unknown file";
   const [loadError, setLoadError] = useState(false);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const isDocx = ext === "docx";
 
   // Fetch file via download endpoint for viewable files
   useEffect(() => {
@@ -544,10 +593,35 @@ function FilePreviewSection({ filePath, index, onIframeError, reportId }: FilePr
       setIsLoading(true);
       try {
         const response = await reportsAPI.download(reportId);
-        const blob = new Blob([response.data], { type: response.headers["content-type"] });
-        const url = URL.createObjectURL(blob);
-        setBlobUrl(url);
-        setLoadError(false);
+
+        if (isDocx) {
+          // For DOCX files, convert to HTML using mammoth with style map
+          const arrayBuffer = await response.data.arrayBuffer();
+          const result = await mammoth.convertToHtml({ arrayBuffer }, {
+            // Style map to preserve more original formatting
+            styleMap: [
+              "p[style-name='Heading 1'] => h1:fresh",
+              "p[style-name='Heading 2'] => h2:fresh",
+              "p[style-name='Heading 3'] => h3:fresh",
+              "p[style-name='Heading 4'] => h4:fresh",
+              "p[style-name='Heading 5'] => h5:fresh",
+              "p[style-name='Heading 6'] => h6:fresh",
+              "p[style-name='Title'] => h1:fresh",
+              "p[style-name='Subtitle'] => h2:fresh",
+              "p[style-name='Normal'] => p:fresh",
+              "r[style-name='Strong'] => strong:fresh",
+              "r[style-name='Emphasis'] => em:fresh",
+            ],
+          });
+          setHtmlContent(result.value);
+          setLoadError(false);
+        } else {
+          // For other files, create blob URL
+          const blob = new Blob([response.data], { type: response.headers["content-type"] });
+          const url = URL.createObjectURL(blob);
+          setBlobUrl(url);
+          setLoadError(false);
+        }
       } catch (error) {
         console.error("Failed to fetch file:", error);
         setLoadError(true);
@@ -565,7 +639,7 @@ function FilePreviewSection({ filePath, index, onIframeError, reportId }: FilePr
         URL.revokeObjectURL(blobUrl);
       }
     };
-  }, [reportId, isViewable, loadError, onIframeError]);
+  }, [reportId, isViewable, loadError, onIframeError, isDocx]);
 
   // Handle iframe load error
   const handleIframeError = () => {
@@ -593,14 +667,14 @@ function FilePreviewSection({ filePath, index, onIframeError, reportId }: FilePr
   if (isLoading) {
     return (
       <div className="flex h-96 flex-col items-center justify-center rounded-lg border bg-muted/30">
-        <LoadingSpinner size="lg" />
+        <Skeleton className="h-12 w-12 rounded-full" />
         <p className="mt-4 text-sm text-muted-foreground">Loading preview...</p>
       </div>
     );
   }
 
   // Error state for viewable files
-  if (loadError || !blobUrl) {
+  if (loadError || (!isDocx && !blobUrl)) {
     return (
       <div className="flex h-96 flex-col items-center justify-center rounded-lg border bg-muted/30">
         <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
@@ -611,10 +685,10 @@ function FilePreviewSection({ filePath, index, onIframeError, reportId }: FilePr
         <Button
           variant="outline"
           size="sm"
-          className="mt-4"
+          className="mt-4 flex"
           onClick={() => window.open(buildFileUrl(filePath), "_blank")}
         >
-          <Download className="mr-2 h-4 w-4" />
+          <Download className="mr-2 h-4 w-4 inline-flex" />
           Download File
         </Button>
       </div>
@@ -663,6 +737,121 @@ function FilePreviewSection({ filePath, index, onIframeError, reportId }: FilePr
           />
         </div>
         <p className="text-center text-xs text-muted-foreground/70">{fileName}</p>
+      </div>
+    );
+  }
+
+  // DOCX viewer using mammoth
+  if (isDocx && htmlContent) {
+    return (
+      <div className="space-y-2">
+        <style>{`
+          .docx-viewer {
+            font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.15;
+            color: #000;
+            background: #fff;
+          }
+          .docx-viewer p {
+            margin: 0 0 8pt 0;
+            text-align: left;
+          }
+          .docx-viewer h1 {
+            font-size: 24pt;
+            font-weight: 600;
+            margin: 0 0 12pt 0;
+            color: #1f4e79;
+          }
+          .docx-viewer h2 {
+            font-size: 18pt;
+            font-weight: 600;
+            margin: 0 0 10pt 0;
+            color: #2e75b6;
+          }
+          .docx-viewer h3 {
+            font-size: 14pt;
+            font-weight: 600;
+            margin: 0 0 8pt 0;
+            color: #1f4e79;
+          }
+          .docx-viewer h4 {
+            font-size: 12pt;
+            font-weight: 600;
+            margin: 0 0 6pt 0;
+            color: #2e75b6;
+          }
+          .docx-viewer h5 {
+            font-size: 11pt;
+            font-weight: 600;
+            margin: 0 0 6pt 0;
+            color: #1f4e79;
+          }
+          .docx-viewer h6 {
+            font-size: 11pt;
+            font-weight: 600;
+            margin: 0 0 6pt 0;
+            color: #2e75b6;
+          }
+          .docx-viewer strong {
+            font-weight: 700;
+          }
+          .docx-viewer em {
+            font-style: italic;
+          }
+          .docx-viewer u {
+            text-decoration: underline;
+          }
+          .docx-viewer ul, .docx-viewer ol {
+            margin: 0 0 8pt 0;
+            padding-left: 36pt;
+          }
+          .docx-viewer li {
+            margin-bottom: 4pt;
+          }
+          .docx-viewer table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 0 0 8pt 0;
+          }
+          .docx-viewer th, .docx-viewer td {
+            border: 1px solid #000;
+            padding: 4pt 8pt;
+          }
+          .docx-viewer img {
+            max-width: 100%;
+            height: auto;
+            margin: 8pt 0;
+          }
+        `}</style>
+        <div
+          className="docx-viewer overflow-y-auto rounded-lg border p-8"
+          style={{ maxHeight: "calc(100vh - 400px)", minHeight: "400px" }}
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+        />
+        <p className="text-center text-xs text-muted-foreground/70">{fileName}</p>
+      </div>
+    );
+  }
+
+  // Fallback for DOCX without content or other viewable files
+  if (isDocx) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center rounded-lg border bg-muted/30">
+        <FileText className="mb-4 h-12 w-12 text-muted-foreground" />
+        <p className="font-medium text-muted-foreground">Failed to load preview</p>
+        <p className="mt-1 text-sm text-muted-foreground/70">
+          Unable to display this file. Please download to view.
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4 flex"
+          onClick={() => window.open(buildFileUrl(filePath), "_blank")}
+        >
+          <Download className="mr-2 h-4 w-4 inline-flex" />
+          Download File
+        </Button>
       </div>
     );
   }

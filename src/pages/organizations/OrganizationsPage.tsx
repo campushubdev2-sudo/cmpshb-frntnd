@@ -7,8 +7,7 @@ import { Link } from "react-router";
 import { toast } from "sonner";
 import z from "zod";
 import { format } from "date-fns";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
-import { Plus } from "lucide-react";
+import { Plus, Users, FileText } from "lucide-react";
 import DataTable from "@/components/shared/DataTable";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -16,6 +15,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import Modal from "@/components/ui/Modal";
 import { orgsAPI, type Org, type User } from "@/api/orgs-api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { officersAPI, type Officer } from "@/api/officers-api";
+import { reportsAPI, type Report } from "@/api/reports-api";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -57,7 +61,9 @@ const orgSchema = z.object({
 const OrganizationsPage = () => {
   const { authenticatedUser } = useAuthentication();
   const isOfficer = authenticatedUser?.role === "officer";
-  const canManage = authenticatedUser?.role === "admin";
+  const isAdviser = authenticatedUser?.role === "adviser";
+  const isAdmin = authenticatedUser?.role === "admin";
+  const canManage = isAdmin;
 
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [advisers, setAdvisers] = useState<{ value: string; label: string }[]>([]);
@@ -67,6 +73,12 @@ const OrganizationsPage = () => {
   const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Adviser's/Officer's organization detail state
+  const [myOrg, setMyOrg] = useState<Organization | null>(null);
+  const [myOrgOfficers, setMyOrgOfficers] = useState<Officer[]>([]);
+  const [myOrgReports, setMyOrgReports] = useState<Report[]>([]);
+  const [myOrgLoading, setMyOrgLoading] = useState(false);
 
   const isEditing = !!editingOrg;
 
@@ -119,6 +131,61 @@ const OrganizationsPage = () => {
   };
 
   // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Adviser's Organization (for adviser/officer role)
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchMyOrganization = async () => {
+    try {
+      setMyOrgLoading(true);
+      const response = await orgsAPI.getMyOrg();
+      const apiResponse = response.data;
+
+      if (apiResponse.success && apiResponse.data) {
+        setMyOrg(apiResponse.data);
+
+        // Fetch officers and reports for this organization
+        const orgId = apiResponse.data._id;
+        const [officersRes, reportsRes] = await Promise.all([
+          officersAPI.getAll({ orgId }).catch(() => ({ data: { success: false } })),
+          reportsAPI.getAll({ orgId }).catch(() => ({ data: { success: false } })),
+        ]);
+
+        if (officersRes.data?.success && Array.isArray(officersRes.data.data)) {
+          setMyOrgOfficers(officersRes.data.data);
+        } else {
+          setMyOrgOfficers([]);
+        }
+        if (reportsRes.data?.success && Array.isArray(reportsRes.data.data)) {
+          setMyOrgReports(reportsRes.data.data);
+        } else {
+          setMyOrgReports([]);
+        }
+      } else {
+        setMyOrg(null);
+        setMyOrgOfficers([]);
+        setMyOrgReports([]);
+      }
+    } catch (error: any) {
+      console.error("Failed to fetch my organization:", error);
+      
+      // Handle 400/404 errors gracefully
+      const status = error?.response?.status;
+      const message = error?.response?.data?.message;
+      
+      if (status === 400 || status === 404) {
+        toast.error(message || "No organization assigned to your account");
+      } else {
+        toast.error("Failed to fetch organization");
+      }
+      
+      setMyOrg(null);
+      setMyOrgOfficers([]);
+      setMyOrgReports([]);
+    } finally {
+      setMyOrgLoading(false);
+    }
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
   // Fetch Advisers from Backend
   // ───────────────────────────────────────────────────────────────────────────
   const fetchAdvisers = async () => {
@@ -159,9 +226,13 @@ const OrganizationsPage = () => {
   };
 
   useEffect(() => {
-    fetchOrgs();
+    if (isAdviser || isOfficer) {
+      fetchMyOrganization();
+    } else {
+      fetchOrgs();
+    }
     fetchAdvisers();
-  }, []);
+  }, [isAdviser, isOfficer]);
 
   // ───────────────────────────────────────────────────────────────────────────
   // Modal Handlers
@@ -205,6 +276,20 @@ const OrganizationsPage = () => {
     setModalOpen(false);
     setEditingOrg(null);
     reset();
+  };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Helper: Get adviser name
+  // ───────────────────────────────────────────────────────────────────────────
+  const getAdviserName = () => {
+    if (!myOrg) return "N/A";
+    if (typeof myOrg.adviser === "object" && myOrg.adviser !== null) {
+      return myOrg.adviser.username || myOrg.adviser.firstName || "N/A";
+    }
+    if (typeof myOrg.adviser === "string") {
+      return myOrg.adviser;
+    }
+    return "N/A";
   };
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -329,10 +414,196 @@ const OrganizationsPage = () => {
       : []),
   ];
 
-  if (loading) {
+  if (myOrgLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          {canManage && <Skeleton className="h-10 w-40" />}
+        </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Skeleton className="h-9 w-64" />
+            </div>
+            <div className="space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-40" />
+                  <Skeleton className="h-10 w-64" />
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-10 w-28" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-16" />
+                    <Skeleton className="h-9 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Adviser/Officer View - Organization Detail
+  // ───────────────────────────────────────────────────────────────────────────
+  if (isAdviser || isOfficer) {
+    if (!myOrg) {
+      return (
+        <div className="flex h-64 items-center justify-center">
+          <div className="text-center">
+            <p className="text-muted-foreground text-lg">No organization assigned</p>
+            <p className="text-muted-foreground text-sm mt-2">
+              {isOfficer 
+                ? "You are not registered as an officer. Please contact your organization adviser or administrator."
+                : "You are not assigned as an adviser. Please contact your administrator."}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-foreground text-2xl font-bold">
+              {myOrg?.orgName || "My Organization"}
+            </h1>
+            <p className="text-muted-foreground mt-1">Organization overview and statistics</p>
+          </div>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="text-blue-600 bg-blue-50 flex h-11 w-11 items-center justify-center rounded-lg">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Total Officers</p>
+                <p className="text-foreground text-xl font-bold">{myOrgOfficers.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="text-emerald-600 bg-emerald-50 flex h-11 w-11 items-center justify-center rounded-lg">
+                <FileText className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Total Reports</p>
+                <p className="text-foreground text-xl font-bold">{myOrgReports.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="text-violet-600 bg-violet-50 flex h-11 w-11 items-center justify-center rounded-lg">
+                <Users className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Adviser</p>
+                <p className="text-foreground text-xl font-bold">{getAdviserName()}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="bg-card text-card-foreground rounded-xl border p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold">Organization Details</h2>
+          <dl className="space-y-3">
+            <div>
+              <dt className="text-muted-foreground text-sm font-medium">Description</dt>
+              <dd className="text-foreground mt-1">
+                {myOrg?.description || "No description provided"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground text-sm font-medium">Created On</dt>
+              <dd className="text-foreground mt-1">
+                {myOrg?.createdAt ? format(new Date(myOrg.createdAt), "MMMM dd, yyyy") : "N/A"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground text-sm font-medium">Last Updated</dt>
+              <dd className="text-foreground mt-1">
+                {myOrg?.updatedAt ? format(new Date(myOrg.updatedAt), "MMMM dd, yyyy") : "N/A"}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="bg-card text-card-foreground rounded-xl border p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold">Officers</h2>
+          {myOrgOfficers.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No officers found</p>
+          ) : (
+            <div className="space-y-2">
+              {myOrgOfficers.map((officer) => (
+                <div
+                  key={officer._id}
+                  className="bg-muted flex items-center justify-between rounded-lg px-4 py-3"
+                >
+                  <div>
+                    <p className="font-medium">
+                      {officer.userId?.username ||
+                        officer.userId?.firstName ||
+                        officer.name ||
+                        "Unknown"}
+                    </p>
+                    <p className="text-muted-foreground text-sm">{officer.position || "Officer"}</p>
+                  </div>
+                  <div className="text-muted-foreground text-xs">
+                    {officer.startTerm && officer.endTerm
+                      ? `${format(new Date(officer.startTerm), "MMM yyyy")} - ${format(new Date(officer.endTerm), "MMM yyyy")}`
+                      : "No term specified"}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-card text-card-foreground rounded-xl border p-6 shadow-sm">
+          <h2 className="mb-4 text-lg font-semibold">Recent Reports</h2>
+          {myOrgReports.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No reports found</p>
+          ) : (
+            <div className="space-y-2">
+              {myOrgReports.slice(0, 5).map((report) => (
+                <div
+                  key={report._id}
+                  className="bg-muted flex items-center justify-between rounded-lg px-4 py-3"
+                >
+                  <div>
+                    <p className="font-medium">{report.reportType || report.title || "Unknown"}</p>
+                    <p className="text-muted-foreground text-sm">
+                      {report.submittedBy?.username || "Unknown"}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={
+                      report.status === "approved"
+                        ? "default"
+                        : report.status === "rejected"
+                          ? "destructive"
+                          : "secondary"
+                    }
+                  >
+                    {report.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }

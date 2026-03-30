@@ -10,7 +10,6 @@ import {
   Mail,
   ShieldCheck,
 } from "lucide-react";
-import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import {
@@ -20,6 +19,8 @@ import {
   CardTitle,
   CardDescription,
 } from "../../components/ui/card";
+import { toast } from "sonner";
+import { authApi } from "@/api/auth-api";
 
 const ForgotPasswordPage = () => {
   const navigate = useNavigate();
@@ -33,11 +34,27 @@ const ForgotPasswordPage = () => {
     confirmPassword: "",
   });
 
-  const handleNext = (e: React.FormEvent) => {
+  // const handleNext = (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   // Logic for API calls would go here based on the current step
+  //   if (step < 3) setStep(step + 1);
+  //   else {
+  //     // Final Submit Logic
+  //     navigate("/login");
+  //   }
+  // };
+  const handleNext = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Logic for API calls would go here based on the current step
-    if (step < 3) setStep(step + 1);
-    else {
+
+    if (step === 1) {
+      if (!formData.email) {
+        toast.error("Email is required");
+        return;
+      }
+
+      const response = await authApi.sendOtp({ email: formData.email });
+      console.log(response);
+    } else {
       // Final Submit Logic
       navigate("/login");
     }
@@ -152,36 +169,39 @@ const ForgotPasswordPage = () => {
                 </div>
               )}
 
-              <Button type="submit" className="mt-2 h-11 w-full text-base font-semibold">
-                {step === 3 ? "Reset Password" : "Continue"}
-                {step < 3 && <ArrowRight size={18} className="ml-2" />}
-              </Button>
+              <button
+                className="group/button flex flex-row items-center justify-center gap-2 w-full h-11 px-6 rounded-4xl bg-primary text-primary-foreground text-base font-semibold transition-all active:translate-y-px disabled:opacity-50 cursor-pointer outline-none select-none"
+                onClick={handleNext}
+              >
+                <span>{step === 3 ? "Reset Password" : "Continue"}</span>
+                {step < 3 && <ArrowRight size={18} />}
+              </button>
             </form>
 
             {/* Navigation Footer - Locked Consistency */}
             <div className="mt-8 border-t pt-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
+              <div className="flex flex-row items-center gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    className="text-muted-foreground hover:text-primary flex flex-row items-center gap-2 text-sm"
+                  <button
+                    className="group/button flex flex-row items-center justify-center gap-2 h-9 px-3 rounded-4xl border border-transparent bg-clip-padding text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary transition-all active:translate-y-px outline-none select-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap cursor-pointer"
                     onClick={() => navigate("/")}
                   >
                     <ArrowLeft size={16} />
+
                     <span>Home</span>
-                  </Button>
+                  </button>
                 </div>
 
-                <div className="bg-border hidden h-4 w-[1px] sm:order-2 sm:block" />
+                <div className="flex items-center gap-2">
+                  <button
+                    className="group/button flex flex-row items-center justify-center gap-2 h-9 px-3 rounded-4xl border border-transparent bg-clip-padding text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary transition-all active:translate-y-px outline-none select-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 whitespace-nowrap cursor-pointer"
+                    onClick={() => navigate("/login")}
+                  >
+                    <LogIn size={16} />
 
-                <Button
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm whitespace-nowrap"
-                  onClick={() => navigate("/login")}
-                >
-                  Back to Login
-                  <LogIn size={16} />
-                </Button>
+                    <span>Back to Login</span>
+                  </button>
+                </div>
               </div>
             </div>
           </CardContent>

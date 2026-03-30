@@ -14,9 +14,10 @@ import { Separator } from "../../components/ui/separator";
 import { Badge } from "../../components/ui/badge";
 import DataTable from "../../components/shared/DataTable";
 import ConfirmDialog from "../../components/shared/ConfirmDialog";
-import LoadingSpinner from "../../components/shared/LoadingSpinner";
 import type { ColumnDef } from "@tanstack/react-table";
-import { auditLogsAPI, type AuditLog as BackendAuditLog } from "../../api/audit-logs-api";
+import { auditLogsAPI, type AuditLog as BackendAuditLog, type UserInfo } from "../../api/audit-logs-api";
+import { Skeleton } from "../../components/ui/skeleton";
+import { Card, CardContent } from "../../components/ui/card";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -43,7 +44,7 @@ const actionBadgeVariant: Record<string, "default" | "secondary" | "destructive"
   "View Profile": "default",
   "Sign Up": "default",
   "Reset Password": "secondary",
-  "Logout": "outline",
+  Logout: "outline",
   "Create User": "secondary",
   "View Users": "outline",
   "Update User": "secondary",
@@ -225,13 +226,13 @@ export default function LogsPage() {
     if (typeof userId === "string") {
       return null;
     }
-    return userId || null;
+    return userId ?? null;
   };
 
   // ───────────────────────────────────────────────────────────────────────────
   // Table Columns
   // ───────────────────────────────────────────────────────────────────────────
-  const columns = [
+  const columns: ColumnDef<AuditLog>[] = [
     {
       id: "select",
       header: () => (
@@ -252,8 +253,8 @@ export default function LogsPage() {
       ),
     },
     {
-      header: "Action",
       accessorKey: "action",
+      header: "Action",
       cell: (row: AuditLog) => {
         const action = row.action;
         const variant = actionBadgeVariant[action] || "outline";
@@ -261,8 +262,8 @@ export default function LogsPage() {
       },
     },
     {
-      header: "User",
       accessorKey: "userId",
+      header: "User",
       cell: (row: AuditLog) => {
         const userInfo = getUserInfo(row.userId);
         if (!userInfo) {
@@ -280,8 +281,8 @@ export default function LogsPage() {
       },
     },
     {
-      header: "Role",
       accessorKey: "role",
+      header: "Role",
       cell: (row: AuditLog) => {
         const userInfo = getUserInfo(row.userId);
         if (!userInfo) {
@@ -291,14 +292,14 @@ export default function LogsPage() {
       },
     },
     {
-      header: "Date",
       accessorKey: "createdAt",
+      header: "Date",
       cell: (row: AuditLog) =>
         row.createdAt ? format(new Date(row.createdAt), "MMM dd, yyyy HH:mm:ss") : "—",
     },
     {
+      id: "actions",
       header: "Actions",
-      accessorKey: "actions",
       cell: (row: AuditLog) => (
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setSelectedLog(row)}>
@@ -310,15 +311,43 @@ export default function LogsPage() {
         </div>
       ),
     },
-  ] as ColumnDef<AuditLog>[];
+  ];
 
   // ───────────────────────────────────────────────────────────────────────────
   // Loading State
   // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-56" />
+          </div>
+          <Skeleton className="h-10 w-28" />
+        </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Skeleton className="h-9 w-64" />
+            </div>
+            <div className="space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-10 w-40" />
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-36" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-9 rounded" />
+                    <Skeleton className="h-9 w-9 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -340,7 +369,7 @@ export default function LogsPage() {
             onClick={() => setDeleteAllOpen(true)}
             disabled={logs.length === 0 || deleteAllLoading}
           >
-            <Trash className="h-4 w-4 mr-2" />
+            <Trash className="h-4 w-4 mr-2 inline-flex" />
             Delete All
           </Button>
         </div>

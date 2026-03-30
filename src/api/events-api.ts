@@ -93,6 +93,13 @@ export const eventsAPI = {
     apiClient.get<ApiResponse<SchoolEvent>>(`/school-events/${id}`),
 
   /**
+   * GET /:orgId/events - Fetch events by organization ID
+   * Auth: admin, guest, adviser, officer
+   */
+  getByOrgId: (orgId: string, params?: { page?: number; limit?: number; type?: "all" | "upcoming" | "past" }) =>
+    apiClient.get<ApiResponse<SchoolEvent[]>>(`/school-events/${orgId}/events`, { params }),
+
+  /**
    * POST / - Create new event
    * Auth: admin, adviser
    * Validation: startDate cannot be in past, endDate >= startDate

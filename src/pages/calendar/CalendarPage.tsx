@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CalendarSection } from "@/components/ui/event-calendar";
 import { useAuthentication } from "@/contexts/AuthContext";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { ROLES } from "@/config/constants/roles";
 import type { CalendarEvent } from "@ilamy/calendar";
 import {
@@ -14,6 +13,7 @@ import {
   normalizeToCalendarEvent,
   normalizeToSchoolEventInput,
 } from "@/services/school-event-service";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types - Normalized for ilamy Calendar
@@ -94,6 +94,7 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarSchoolEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
   // ───────────────────────────────────────────────────────────────────────────
   // Fetch Events from Backend
@@ -141,8 +142,8 @@ export default function CalendarPage() {
   // ───────────────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+    const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
 
     const thisMonth = events.filter((e) => {
       const eventDate = new Date(e.start);
@@ -150,13 +151,13 @@ export default function CalendarPage() {
     }).length;
 
     const upcoming = events.filter((e) => {
-      const eventDate = new Date(e.start);
-      return eventDate >= now;
+      const startDate = new Date(e.start);
+      return startDate >= now;
     }).length;
 
     const completed = events.filter((e) => {
-      const eventDate = new Date(e.end);
-      return eventDate < now;
+      const endDate = new Date(e.end);
+      return endDate < now;
     }).length;
 
     return {
@@ -165,7 +166,17 @@ export default function CalendarPage() {
       completed,
       total: events.length,
     };
-  }, [events]);
+  }, [events, currentMonth]);
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Calendar navigation handler - wrapped to avoid setState during render
+  // ───────────────────────────────────────────────────────────────────────────
+  const handleDateChange = (date: Date) => {
+    // Defer state update to avoid calling setState during another component's render
+    requestAnimationFrame(() => {
+      setCurrentMonth(date);
+    });
+  };
 
   // ───────────────────────────────────────────────────────────────────────────
   // ilamy calendar event handlers
@@ -262,9 +273,44 @@ export default function CalendarPage() {
   // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex h-96 flex-col items-center justify-center gap-3">
-        <LoadingSpinner size="lg" />
-        <p className="text-muted-foreground text-sm">Loading calendar...</p>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="p-0">
+              <CardContent className="flex items-center gap-3 p-3.5">
+                <Skeleton className="h-10 w-10 rounded-lg" />
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-8" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between border-b p-4">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-9 w-32" />
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-9 rounded-md" />
+                <Skeleton className="h-9 w-9 rounded-md" />
+              </div>
+            </div>
+            <div className="p-4">
+              <Skeleton className="h-80 w-full" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -315,6 +361,7 @@ export default function CalendarPage() {
           events={events}
           onEventSave={handleEventSave}
           onEventDelete={handleEventDelete}
+          onDateChange={handleDateChange}
         />
       </div>
     </>

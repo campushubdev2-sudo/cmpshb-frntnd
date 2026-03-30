@@ -31,7 +31,6 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import DataTable from "@/components/shared/DataTable";
 import ConfirmDialog from "@/components/shared/ConfirmDialog";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { useAuthentication } from "@/contexts/AuthContext";
 import {
   eventNotificationsAPI,
@@ -40,6 +39,9 @@ import {
 } from "@/api/notifications-api";
 import { eventsAPI } from "@/api/events-api";
 import { usersAPI, type User } from "@/api/users-api";
+import { authApi } from "@/api/auth-api";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -91,8 +93,12 @@ const MESSAGE_TEMPLATES = [
 const normalizeNotification = (notif: BackendNotification): Notification => {
   return {
     ...notif,
-    eventTitle: typeof notif.eventId === "object" && notif.eventId !== null ? notif.eventId.title : undefined,
-    recipientUsername: typeof notif.recipientId === "object" && notif.recipientId !== null ? notif.recipientId.username : undefined,
+    eventTitle:
+      typeof notif.eventId === "object" && notif.eventId !== null ? notif.eventId.title : undefined,
+    recipientUsername:
+      typeof notif.recipientId === "object" && notif.recipientId !== null
+        ? notif.recipientId.username
+        : undefined,
   };
 };
 
@@ -112,6 +118,7 @@ export default function NotificationsPage() {
   const [viewTarget, setViewTarget] = useState<Notification | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [senderId, setSenderId] = useState<string | null>(null);
 
   // Form state
   const [formEventId, setFormEventId] = useState("");
@@ -130,14 +137,14 @@ export default function NotificationsPage() {
 
       if (apiResponse.success) {
         let notificationsData: any[] = [];
-        
+
         // Handle different response structures
         if (Array.isArray(apiResponse.data)) {
           notificationsData = apiResponse.data;
         } else if (apiResponse.data?.docs && Array.isArray(apiResponse.data.docs)) {
           notificationsData = apiResponse.data.docs;
         }
-        
+
         const normalized = notificationsData.map(normalizeNotification);
         setNotifications(normalized);
       } else {
@@ -145,7 +152,8 @@ export default function NotificationsPage() {
       }
     } catch (error: any) {
       console.error("Error fetching notifications:", error);
-      const message = error?.response?.data?.message || error?.message || "Failed to fetch notifications";
+      const message =
+        error?.response?.data?.message || error?.message || "Failed to fetch notifications";
       toast.error(message);
       setNotifications([]);
     } finally {
@@ -164,7 +172,7 @@ export default function NotificationsPage() {
 
       if (apiResponse.success) {
         let eventsData: any[] = [];
-        
+
         // Handle different response structures
         if (Array.isArray(apiResponse.data)) {
           eventsData = apiResponse.data;
@@ -203,10 +211,27 @@ export default function NotificationsPage() {
     }
   };
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Fetch Sender ID from profile
+  // ───────────────────────────────────────────────────────────────────────────
+  const fetchSenderId = async () => {
+    try {
+      const response = await authApi.getProfile();
+      const apiResponse = response.data;
+
+      if (apiResponse.success && apiResponse.data?._id) {
+        setSenderId(apiResponse.data._id);
+      }
+    } catch (error) {
+      console.error("Failed to fetch sender profile:", error);
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
     fetchEvents();
     fetchUsers();
+    fetchSenderId();
   }, []);
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -277,25 +302,46 @@ export default function NotificationsPage() {
     try {
       setSubmitting(true);
 
-      // Use bulk create endpoint
-      const payload = {
-        eventId: formEventId,
-        recipientIds: selectedUserIds,
-        message: formMessage.trim(),
-      };
+      // Use single create endpoint for one user, bulk for multiple
+      if (selectedUserIds.length === 1) {
+        const payload = {
+          eventId: formEventId,
+          recipientId: selectedUserIds[0],
+          message: formMessage.trim(),
+          senderId: senderId || undefined,
+        };
 
-      const response = await eventNotificationsAPI.createBulk(payload);
-      const apiResponse = response.data;
+        const response = await eventNotificationsAPI.create(payload);
+        const apiResponse = response.data;
 
-      if (apiResponse.success) {
-        const count = apiResponse.data?.notifications?.length || selectedUserIds.length;
-        toast.success(
-          `Notification sent to ${count} recipient${count > 1 ? "s" : ""}${apiResponse.data?.skippedDuplicates ? ` (${apiResponse.data.skippedDuplicates} duplicates skipped)` : ""}`,
-        );
-        closeModal();
-        fetchNotifications();
+        if (apiResponse.success) {
+          toast.success("Notification sent successfully");
+          closeModal();
+          fetchNotifications();
+        } else {
+          toast.error(apiResponse.message || "Failed to send notification");
+        }
       } else {
-        toast.error(apiResponse.message || "Failed to send notification");
+        const payload = {
+          eventId: formEventId,
+          recipientIds: selectedUserIds,
+          message: formMessage.trim(),
+          senderId: senderId || undefined,
+        };
+
+        const response = await eventNotificationsAPI.createBulk(payload);
+        const apiResponse = response.data;
+
+        if (apiResponse.success) {
+          const count = apiResponse.data?.notifications?.length || selectedUserIds.length;
+          toast.success(
+            `Notification sent to ${count} recipient${count > 1 ? "s" : ""}${apiResponse.data?.skippedDuplicates ? ` (${apiResponse.data.skippedDuplicates} duplicates skipped)` : ""}`,
+          );
+          closeModal();
+          fetchNotifications();
+        } else {
+          toast.error(apiResponse.message || "Failed to send notification");
+        }
       }
     } catch (error: any) {
       const message = error?.response?.data?.message || "Failed to send notification";
@@ -372,7 +418,11 @@ export default function NotificationsPage() {
       header: "Message",
       accessorKey: "message",
       cell: (row: Notification) =>
-        row.message ? (row.message.length > 50 ? `${row.message.substring(0, 50)}...` : row.message) : "—",
+        row.message
+          ? row.message.length > 50
+            ? `${row.message.substring(0, 50)}...`
+            : row.message
+          : "—",
     },
     {
       header: "Status",
@@ -392,7 +442,7 @@ export default function NotificationsPage() {
       cell: (row: Notification) => (
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setViewTarget(row)}>
-            <Eye className="mr-1 h-4 w-4" />
+            <Eye className="mr-1 h-4 w-4 inline-flex" />
             View
           </Button>
           {canManage && (
@@ -410,8 +460,37 @@ export default function NotificationsPage() {
   // ───────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-40" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-10 w-44" />
+        </div>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="mb-4 flex items-center gap-2">
+              <Skeleton className="h-9 w-64" />
+            </div>
+            <div className="space-y-2">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-40" />
+                  <Skeleton className="h-10 w-32" />
+                  <Skeleton className="h-10 w-48" />
+                  <Skeleton className="h-8 w-24 rounded-md" />
+                  <Skeleton className="h-10 w-36" />
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 w-16" />
+                    <Skeleton className="h-9 w-16" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -432,8 +511,10 @@ export default function NotificationsPage() {
           </div>
           {canManage && (
             <Button onClick={openModal}>
-              <Plus className="mr-2 h-4 w-4" />
-              Send Notification
+              <div className="flex items-center justify-center">
+                <Plus className="h-4 w-4 mr-2" />
+                Send Notification
+              </div>
             </Button>
           )}
         </div>
@@ -664,11 +745,17 @@ export default function NotificationsPage() {
                   <Button variant="outline" type="button" onClick={closeModal}>
                     Cancel
                   </Button>
-                  <Button type="submit" loading={submitting} className="gap-1.5">
-                    <Send className="h-4 w-4" />
+
+                  <Button type="submit" loading={submitting} className="w-fit">
+                    <Send className="h-4 w-4 inline-flex mr-1" />
                     Send to {selectedUserIds.length || 0} user
                     {selectedUserIds.length !== 1 ? "s" : ""}
                   </Button>
+
+                  {/* <div className="flex items-center justify-center">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add User
+                      </div> */}
                 </div>
               </form>
             </DialogContent>

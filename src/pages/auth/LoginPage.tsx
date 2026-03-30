@@ -102,12 +102,6 @@ const LoginPage = () => {
                   <Label htmlFor="password" className={cn(error && "text-destructive")}>
                     Password
                   </Label>
-                  {/* <Link
-                    to="/forgot-password"
-                    className="text-primary text-xs font-medium underline-offset-4 hover:underline"
-                  >
-                    Forgot password?
-                  </Link> */}
                 </div>
                 <div className="relative">
                   <Input
@@ -148,7 +142,7 @@ const LoginPage = () => {
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
               <Button
                 variant="ghost"
-                className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm"
+                className={`text-muted-foreground hover:text-primary flex items-center gap-2 text-sm ${loading && "hidden"}`}
                 onClick={() => navigate("/")}
               >
                 <span
@@ -158,11 +152,11 @@ const LoginPage = () => {
                 </span>
               </Button>
 
-              <div className="bg-border h-4 w-px" />
+              <div className={`bg-border h-4 w-px ${loading && "hidden"}`} />
 
               <Button
                 variant="ghost"
-                className="text-muted-foreground hover:text-primary flex items-center gap-2 text-sm"
+                className={`text-muted-foreground hover:text-primary flex items-center gap-2 text-sm ${loading && "hidden"}`}
                 onClick={() => navigate("/register")}
               >
                 <span
